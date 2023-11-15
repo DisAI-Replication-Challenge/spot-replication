@@ -1,0 +1,13 @@
+learning_rate: 0.001
+optimizer: AdamW
+batch_size: 8
+epochs: 1
+warm_init: True
+weight_decay: 0.0
+model_name: t5-base
+output_path: ./output
+prompt_init_text: Answer the question
+eval_strategy: steps
+gradient_steps: 100
+fp16: True
+  

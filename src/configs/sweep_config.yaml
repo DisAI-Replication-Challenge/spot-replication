@@ -1,0 +1,34 @@
+method: bayes
+metric:
+  name: eval_loss
+  goal: minimize
+early_terminate:
+  type: hyperband
+  min_iter: 1
+  max_iter: 10
+  reduction_factor: 3
+  min_early_terminate_iter: 1
+  grace_period: 1
+  max_concurrent: 1
+parameters:
+  learning_rate:
+    values: [0.001, 0.01, 0.1]
+  optimizer:
+    values:  [AdafactorSchedule, AdamW, AdamWeightDecay]
+  batch_size:
+    values: [8, 16, 32, 64, 128]
+  epochs:
+    values: [1, 2, 3, 4, 5]
+  warm_init:
+    values: [True, False]
+  weight_decay:
+    values: [0.0, 0.01, 0.001, 0.0001]
+  fp16:
+    value: True
+  model_name:
+    value: t5-base
+  output_path:
+    value: ./output
+  prompt_init_text:
+    value: Answer the question
+  
