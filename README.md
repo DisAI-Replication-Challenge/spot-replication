@@ -1,0 +1,1 @@
+# Replication of the SPoT paper
