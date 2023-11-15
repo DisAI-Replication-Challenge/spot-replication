@@ -6,7 +6,7 @@ import pandas as pd
 import re
 from datasets import DatasetDict
 from datasets import Dataset as HFDataset
-import src.data.t5.metrics as metrics
+import data.t5.metrics as metrics
 from collections import namedtuple
 
 Metric = namedtuple('Metric', ['name', 'compute'])

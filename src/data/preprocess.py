@@ -1,10 +1,7 @@
 import functools
 
 
-def preprocess_data(dataloader, tokenizer, max_input_length=512, max_target_length=512, padding='max_length', truncation=True):
-    train_data = dataloader.dataset['train'].map(dataloader.preprocess)
-    valid_data = dataloader.dataset['validation'].map(dataloader.preprocess)
-    test_data = dataloader.dataset['test'].map(dataloader.preprocess)
+def preprocess_data(dataloader, tokenizer, max_input_length=512, max_target_length=512, padding='max_length', truncation=True, test_set=False):
 
     func = functools.partial(
         dataloader.tokenize,
@@ -17,11 +14,20 @@ def preprocess_data(dataloader, tokenizer, max_input_length=512, max_target_leng
 
     remove_columns = dataloader.dataset['train'].column_names
 
-    train_data_tokenized = train_data.map(
-        func, batched=True, remove_columns=remove_columns)
-    valid_data_tokenized = valid_data.map(
-        func, batched=True, remove_columns=remove_columns)
-    test_data_tokenized = test_data.map(
-        func, batched=True, remove_columns=remove_columns)
+    if test_set:
+        test_data = dataloader.dataset['test'].map(dataloader.preprocess)
+        test_data_tokenized = test_data.map(
+            func, batched=True, remove_columns=remove_columns)
 
-    return train_data_tokenized, valid_data_tokenized, test_data_tokenized
+        return None, None, test_data_tokenized
+    else:
+        train_data = dataloader.dataset['train'].map(dataloader.preprocess)
+        valid_data = dataloader.dataset['validation'].map(
+            dataloader.preprocess)
+
+        train_data_tokenized = train_data.map(
+            func, batched=True, remove_columns=remove_columns)
+        valid_data_tokenized = valid_data.map(
+            func, batched=True, remove_columns=remove_columns)
+
+        return train_data_tokenized, valid_data_tokenized, None

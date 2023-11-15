@@ -9,8 +9,8 @@ from tqdm import tqdm
 import yaml
 import wandb
 
-from src.data.preprocess import preprocess_data
-from src.train.utils import get_optimizer
+from data.preprocess import preprocess_data
+from train.utils import get_optimizer
 
 
 def get_model_tokenizer(model_name):
