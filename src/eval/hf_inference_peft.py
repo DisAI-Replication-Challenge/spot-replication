@@ -29,14 +29,14 @@ def eval_data(model, tokenizer, data, metrics):
             batch = {k: v.to(device) for k, v in batch.items()}
 
             outputs = model(batch["input_ids"], attention_mask=batch["attention_mask"],
-                            labels=batch["targets"], return_dict=True)
+                            labels=batch["labels"], return_dict=True)
 
             decoded_preds = tokenizer.batch_decode(
                 outputs.detach().cpu().numpy(), skip_special_tokens=True)
             decoded_preds = [text.strip() for text in decoded_preds]
 
             decoded_labels = tokenizer.batch_decode(
-                batch["targets"].detach().cpu().numpy(), skip_special_tokens=True)
+                batch["labels"].detach().cpu().numpy(), skip_special_tokens=True)
             decoded_labels = [text.strip() for text in decoded_labels]
 
             scores = dict()

@@ -28,7 +28,6 @@ def train_loop(config, dataloader, metrics):
 
     with wandb.init(config=config):
         config = wandb.config
-        wandb.watch(model, loag="all", log_freq=100)
 
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
@@ -40,6 +39,7 @@ def train_loop(config, dataloader, metrics):
 
         model, tokenizer = get_model_tokenizer(config.model_name)
         model = get_peft_model(model, peft_config)
+        wandb.watch(model, log="all", log_freq=100)
 
         train_data, valid_data, _ = preprocess_data(
             dataloader, tokenizer, test_set=False)
@@ -60,10 +60,6 @@ def train_loop(config, dataloader, metrics):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)
 
-        # training loop wiht logging to wandb and calculate metrics
-        config = wandb.config
-        wandb.watch(model, loag="all", log_freq=100)
-
         best_eval_loss = float("inf")
 
         for epoch in tqdm(range(config.epochs)):
@@ -79,14 +75,15 @@ def train_loop(config, dataloader, metrics):
 
             for batch in tqdm(train_dataloader):
                 batch = {k: v.to(device) for k, v in batch.items()}
-                outputs = model(**batch)
+                outputs = model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
                 loss = outputs.loss
                 total_loss += loss.detach().float()
 
                 for metric in metrics:
                     metric.compute.to(device)
                     prediction = torch.argmax(outputs.logits, dim=-1)
-                    value = metric.compute(batch["targets"], prediction)
+                    value = metric.compute(batch["labels"], prediction)
                     training_metrics[f"train_{metric.name}"] += value.detach().float()
 
                 loss.backward()
@@ -98,7 +95,8 @@ def train_loop(config, dataloader, metrics):
             with torch.no_grad():
                 for batch in tqdm(eval_dataloader):
                     batch = {k: v.to(device) for k, v in batch.items()}
-                    outputs = model(**batch)
+                    outputs = model(
+                        input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
                     loss = outputs.loss
                     eval_loss += loss.detach().float()
 
@@ -107,7 +105,7 @@ def train_loop(config, dataloader, metrics):
                     decoded_preds = [text.strip() for text in decoded_preds]
 
                     decoded_labels = tokenizer.batch_decode(
-                        batch["targets"].detach().cpu().numpy(), skip_special_tokens=True)
+                        batch["labels"].detach().cpu().numpy(), skip_special_tokens=True)
                     decoded_labels = [text.strip() for text in decoded_labels]
 
                     for metric in metrics:
