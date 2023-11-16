@@ -26,9 +26,9 @@ parameters:
   fp16:
     value: True
   model_name:
-    value: t5-base
+    value: google/t5-v1_1-base
   output_path:
-    value: ./output
+    value: ../results
   prompt_init_text:
     value: Answer the question
   

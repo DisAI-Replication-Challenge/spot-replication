@@ -1,13 +1,13 @@
 import babel
-from collections import OrderedDict
 from datasets import load_dataset as hfload_dataset
 import numpy as np
 import pandas as pd
 import re
 from datasets import DatasetDict
 from datasets import Dataset as HFDataset
+from collections import OrderedDict, namedtuple
+
 import data.t5.metrics as metrics
-from collections import namedtuple
 
 Metric = namedtuple('Metric', ['name', 'compute'])
 
@@ -17,13 +17,12 @@ class Dataset:
         self.benchmark_name = benchmark_name
         self.subset = subset
         self.split = split
-        self.metrics = []
         self.load_dataset()
 
     def load_dataset(self):
         if self.subset is None:
             self.dataset = hfload_dataset(
-                self.benchmark_name, self.split)  # , cache_dir='../../../data/.cache')
+                self.benchmark_name)  # , self.split, cache_dir='../../../data/.cache')
         else:
             self.dataset = hfload_dataset(
                 self.benchmark_name, self.subset)  # , self.split, cache_dir='../../../data/.cache')

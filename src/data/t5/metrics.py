@@ -6,7 +6,8 @@ import scipy.stats
 import numpy as np
 import collections
 import re
-import qa_utils
+
+import data.t5.qa_utils as qa_utils
 
 
 def bleu(targets, predictions, tokenizer="intl"):

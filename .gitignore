@@ -167,3 +167,4 @@ src/train/wandb
 Bloom example.ipynb
 T5 training.ipynb
 Test.ipynb
+wandb.conf

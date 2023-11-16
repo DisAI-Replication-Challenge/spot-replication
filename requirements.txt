@@ -13,3 +13,6 @@ transformers==4.28.1
 wandb==0.15.0
 pyyaml
 t5
+scikit-learn==1.3.2
+sacrebleu==2.3.2
+rouge-score==0.1.2

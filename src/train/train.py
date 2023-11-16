@@ -53,7 +53,7 @@ def train_loop(config, dataloader, metrics):
         optimizer = get_optimizer(config, model)
         lr_scheduler = get_linear_schedule_with_warmup(
             optimizer=optimizer,
-            num_warmup_steps=0,
+            num_warmup_steps=config.num_warmup_steps,
             num_training_steps=(len(train_dataloader) * config.epochs),
         )
 
@@ -147,7 +147,6 @@ def train_with_sweeps(dataloader, metrics, config_path, wandb_project="t5-multir
     os.environ["WANDB_PROJECT"] = wandb_project
     os.environ["WANDB_LOG_MODEL"] = wandb_log_model
     # use wandb sweeps
-    wandb.login()
     sweep_config = get_config(config_path)
     sweep_config['parameters']['wandb_project'] = wandb_project
 
@@ -160,7 +159,6 @@ def train(dataloader, metrics, config_path, wandb_project="t5-multirc-finetune",
     os.environ["WANDB_PROJECT"] = wandb_project
     os.environ["WANDB_LOG_MODEL"] = wandb_log_model
     # use wandb sweeps
-    wandb.login()
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 

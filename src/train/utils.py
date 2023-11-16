@@ -1,6 +1,6 @@
 import yaml
 from transformers import TrainingArguments
-from transformers.optimization import Adafactor, AdafactorSchedule, AdamW, AdamWeightDecay
+from torch.optim import AdamW, Adamax, Adagrad, Adadelta, SparseAdam, Adam
 
 
 def create_arguments(num_samples, config, metrics):
@@ -14,9 +14,11 @@ def create_arguments(num_samples, config, metrics):
     metrics = metrics
     use_fp16 = config.fp16
 
-    logging_steps = len(num_samples) // (batch_size * epochs)
+    logging_steps = num_samples // (batch_size * epochs)
     # eval around each 2000 samples
     logging_steps = round(2000 / (batch_size * gradient_accumulation_steps))
+
+    model_name = model_name.split("/")[-1]
 
     return TrainingArguments(
         output_dir=f"{config.output_path}{model_name}-finetuned",
@@ -48,39 +50,42 @@ def create_arguments(num_samples, config, metrics):
 def get_optimizer(config, model):
 
     optimizer = config.optimizer
-    warm_init = config.warm_init
     optimizer_lr = config.learning_rate
 
-    if optimizer == 'AdafactorSchedule':
-        return AdafactorSchedule(
+    if optimizer == 'Adadelta':
+        return Adadelta(
             model.parameters(),
-            scale_parameter=True,
-            relative_step=True,
-            warmup_init=warm_init,
+            lr=optimizer_lr
+        )
+    elif optimizer == 'Adagrad':
+        return Adagrad(
+            model.parameters(),
+            lr=optimizer_lr
+        )
+    elif optimizer == 'Adam':
+        return Adam(
+            model.parameters(),
             lr=optimizer_lr
         )
     elif optimizer == 'AdamW':
         return AdamW(
             model.parameters(),
-            scale_parameter=True,
-            relative_step=True,
-            warmup_init=warm_init,
             lr=optimizer_lr
         )
-    elif optimizer == 'AdamWeightDecay':
-        return AdamWeightDecay(
+    elif optimizer == 'SparseAdam':
+        return SparseAdam(
             model.parameters(),
-            scale_parameter=True,
-            relative_step=True,
-            warmup_init=warm_init,
+            lr=optimizer_lr
+        )
+    elif optimizer == 'Adamax':
+        return Adamax(
+            model.parameters(),
             lr=optimizer_lr
         )
 
-    return Adafactor(
+    return Adam(
         model.parameters(),
-        scale_parameter=True,
-        relative_step=True,
-        warmup_init=warm_init,
+
         lr=optimizer_lr
     )
 

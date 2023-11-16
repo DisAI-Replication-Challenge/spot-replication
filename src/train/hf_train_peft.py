@@ -1,13 +1,11 @@
-from data.preprocess import preprocess_data
-from utils import create_arguments, get_config, get_optimizer
-import evaluate
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer, EarlyStoppingCallback, DataCollatorForSeq2Seq
-import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer, EarlyStoppingCallback, get_linear_schedule_with_warmup
 import os
 from peft import get_peft_model, PromptTuningInit, PromptTuningConfig, TaskType
-import yaml
 from collections import namedtuple
+
+from data.preprocess import preprocess_data
+from train.utils import create_arguments, get_config, get_optimizer
 
 
 def get_model_tokenizer(model_name):
@@ -49,6 +47,11 @@ def train_loop(dataloader, metrics, config):
         return scores
 
     optimizer = get_optimizer(config, model)
+    lr_scheduler = get_linear_schedule_with_warmup(
+        optimizer=optimizer,
+        num_warmup_steps=config.num_warmup_steps,
+        num_training_steps=(len(train_data) * config.epochs),
+    )
 
     trainer = Trainer(
         model=model,
@@ -57,7 +60,7 @@ def train_loop(dataloader, metrics, config):
         train_dataset=train_data,
         eval_dataset=valid_data,
         compute_metrics=compute_metrics,
-        optimizers=(optimizer),
+        optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
     )
 
@@ -80,14 +83,3 @@ def train(dataloader, metrics, config_path, wandb_project="t5-multirc-finetune",
     config = namedtuple('config', config.keys())(*config.values())
 
     train_loop(dataloader, metrics, config)
-
-
-if __name__ == '__main__':
-    tokenizer = AutoTokenizer.from_pretrained("t5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("t5-base")
-    metric = evaluate.load("accuracy")
-
-    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)

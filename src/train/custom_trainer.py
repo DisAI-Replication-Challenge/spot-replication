@@ -1,9 +1,9 @@
 import os
 import wandb
 
-from hf_train_peft import get_config, train as hf_train_peft
-from train import train_with_sweeps
-from train import train as custom_train
+from train.hf_train_peft import get_config, train as hf_train_peft
+from train.train import train_with_sweeps
+from train.train import train as custom_train
 from data.t5.task import DatasetOption
 from eval.hf_inference_peft import inference
 
@@ -18,7 +18,7 @@ class CustomTrainer:
 
     def train(self, dataset):
 
-        dataloader = DatasetOption.get(dataset)
+        dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
         if self.use_hf:
@@ -36,7 +36,7 @@ class CustomTrainer:
         os.environ["WANDB_PROJECT"] = self.wandb_project
         os.environ["WANDB_LOG_MODEL"] = self.wandb_log_model
 
-        dataloader = DatasetOption.get(dataset)
+        dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
         config = get_config(self.config_path)
