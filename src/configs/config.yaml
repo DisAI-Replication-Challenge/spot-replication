@@ -7,7 +7,7 @@ weight_decay: 0.0
 num_warmup_steps: 0
 model_name: google/t5-v1_1-base
 output_path: ../results
-prompt_init_text: Answer the question
+prompt_init_text: "Answer True or False: "
 eval_strategy: steps
 gradient_steps: 100
 fp16: True

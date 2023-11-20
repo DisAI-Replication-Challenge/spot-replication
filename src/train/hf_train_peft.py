@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer, EarlySto
 import os
 from peft import get_peft_model, PromptTuningInit, PromptTuningConfig, TaskType
 from collections import namedtuple
+import torch
 
 from data.preprocess import preprocess_data
 from train.utils import create_arguments, get_config, get_optimizer
@@ -40,11 +41,30 @@ def train_loop(dataloader, metrics, config):
 
     def compute_metrics(eval_pred):
         scores = dict()
-        logits, labels = eval_pred
-        predictions = np.argmax(logits, axis=-1)
+        labels_ids = eval_pred.label_ids
+        pred_ids = eval_pred.predictions[0]
+
+        decoded_preds = tokenizer.batch_decode(
+            pred_ids, skip_special_tokens=True)
+        decoded_preds = [text.strip() for text in decoded_preds]
+
+        labels_ids[labels_ids == -100] = tokenizer.pad_token_id
+
+        decoded_labels = tokenizer.batch_decode(
+            labels_ids, skip_special_tokens=True)
+        decoded_labels = [text.strip() for text in decoded_labels]
+
         for metric in metrics:
-            scores[metric.name] = metric.compute(labels, predictions)
+            scores[metric.name] = metric.compute(decoded_labels, decoded_preds)
         return scores
+
+    def preprocess_logits_for_metrics(logits, labels):
+        """
+        Original Trainer may have a memory leak. 
+        This is a workaround to avoid storing too many tensors that are not needed.
+        """
+        pred_ids = torch.argmax(logits, dim=-1)
+        return pred_ids, labels
 
     optimizer = get_optimizer(config, model)
     lr_scheduler = get_linear_schedule_with_warmup(
@@ -60,6 +80,7 @@ def train_loop(dataloader, metrics, config):
         train_dataset=train_data,
         eval_dataset=valid_data,
         compute_metrics=compute_metrics,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
     )

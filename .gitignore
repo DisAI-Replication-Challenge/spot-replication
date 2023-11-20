@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 CxC/*
+newsqa/*
 src/train/outputs
 src/train/results
 src/train/wandb

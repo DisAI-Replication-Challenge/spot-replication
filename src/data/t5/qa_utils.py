@@ -1,4 +1,6 @@
+import collections
 import re
+import numpy as np
 import string
 
 
@@ -32,3 +34,46 @@ def normalize_trivia_qa(answer):
 def normalize_squad(answer):
     """Normalization used in official SQuAD evaluation script."""
     return _normalize_answer(answer, punc_chars=string.punctuation, punc_repl="")
+
+
+def _exact_match_score(target, prediction):
+    return target == prediction
+
+
+def _f1_score(target, prediction):
+    """Computes token f1 score for a single target and prediction."""
+    prediction_tokens = prediction.split()
+    target_tokens = target.split()
+    common = (collections.Counter(prediction_tokens) &
+              collections.Counter(target_tokens))
+    num_same = sum(common.values())
+    if num_same == 0:
+        return 0
+    precision = 1.0 * num_same / len(prediction_tokens)
+    recall = 1.0 * num_same / len(target_tokens)
+    f1 = (2 * precision * recall) / (precision + recall)
+    return f1
+
+
+def _metric_max_over_ground_truths(metric_fn, ground_truths, prediction):
+    """Computes the maximum of the metric over all ground truths."""
+    return max(
+        metric_fn(ground_truth, prediction) for ground_truth in ground_truths
+    )
+
+
+def qa_metrics(targets, predictions):
+    """Computes exact match and f1 QA scores, expecting pre-normalized text."""
+    if len(targets) != len(predictions):
+        raise ValueError("Number of targets and predictions must match.")
+    em = np.mean([
+        _metric_max_over_ground_truths(_exact_match_score, t, p)
+        for p, t in zip(predictions, targets)
+    ])
+    f1 = np.mean([
+        _metric_max_over_ground_truths(_f1_score, t, p)
+        for p, t in zip(predictions, targets)
+    ])
+    em *= 100
+    f1 *= 100
+    return {"em": em, "f1": f1}

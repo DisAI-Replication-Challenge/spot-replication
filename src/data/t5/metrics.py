@@ -279,7 +279,7 @@ def multirc_f1_over_all_answers(targets, predictions):
       F1 score over values, where any prediction != 0 or 1 is counted as wrong.
     """
     return f1_score_with_invalid(
-        [t["value"] for t in targets], [p["value"] for p in predictions]
+        [t for t in targets], [p for p in predictions]
     )
 
 

@@ -6,6 +6,7 @@ from train.train import train_with_sweeps
 from train.train import train as custom_train
 from data.t5.task import DatasetOption
 from eval.hf_inference_peft import inference
+from collections import namedtuple
 
 
 class CustomTrainer:
@@ -40,7 +41,8 @@ class CustomTrainer:
         metrics = dataloader.metrics
 
         config = get_config(self.config_path)
-        results = inference(config.model_name, dataloader, metrics)
+        config = namedtuple('config', config.keys())(*config.values())
+        results = inference(config, dataloader, metrics)
 
         wandb_log = dict()
         for metric in metrics:

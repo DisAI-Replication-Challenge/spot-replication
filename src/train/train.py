@@ -41,12 +41,16 @@ def train_loop(config, dataloader, metrics):
         model = get_peft_model(model, peft_config)
         wandb.watch(model, log="all", log_freq=100)
 
-        train_data, valid_data, _ = preprocess_data(
+        train_data, _, _ = preprocess_data(
             dataloader, tokenizer, test_set=False)
+        # train test split
+        train_data, valid_data = train_data.train_test_split(
+            test_size=0.1, shuffle=True)
 
         train_dataloader = DataLoader(
             train_data, shuffle=True, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True
         )
+
         eval_dataloader = DataLoader(
             valid_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True)
 
@@ -80,10 +84,18 @@ def train_loop(config, dataloader, metrics):
                 loss = outputs.loss
                 total_loss += loss.detach().float()
 
+                decoded_labels, decoded_preds = dataloader.postprocess(
+                    labels=batch["labels"].detach().cpu().numpy(),
+                    preds=torch.argmax(
+                        outputs.logits, -1).detach().cpu().numpy(),
+                    tokenizer=tokenizer,
+                )
+
                 for metric in metrics:
-                    metric.compute.to(device)
-                    prediction = torch.argmax(outputs.logits, dim=-1)
-                    value = metric.compute(batch["labels"], prediction)
+                    if metric.name in ["F1 over all answers"]:
+                        decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
+                            decoded_labels, decoded_preds)
+                    value = metric.compute(decoded_labels, decoded_preds)
                     training_metrics[f"train_{metric.name}"] += value.detach().float()
 
                 loss.backward()
@@ -100,16 +112,17 @@ def train_loop(config, dataloader, metrics):
                     loss = outputs.loss
                     eval_loss += loss.detach().float()
 
-                    decoded_preds = tokenizer.batch_decode(
-                        outputs.detach().cpu().numpy(), skip_special_tokens=True)
-                    decoded_preds = [text.strip() for text in decoded_preds]
-
-                    decoded_labels = tokenizer.batch_decode(
-                        batch["labels"].detach().cpu().numpy(), skip_special_tokens=True)
-                    decoded_labels = [text.strip() for text in decoded_labels]
+                    decoded_labels, decoded_preds = dataloader.postprocess(
+                        labels=batch["labels"].detach().cpu().numpy(),
+                        preds=torch.argmax(
+                            outputs.logits, -1).detach().cpu().numpy(),
+                        tokenizer=tokenizer,
+                    )
 
                     for metric in metrics:
-                        metric.compute.to(device)
+                        if metric.name in ["F1 over all answers"]:
+                            decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
+                                decoded_labels, decoded_preds)
                         valid_metrics[f"valid_{metric.name}"] += metric.compute(
                             decoded_labels, decoded_preds).detach().float()
 
@@ -137,8 +150,10 @@ def train_loop(config, dataloader, metrics):
             if total_eval_loss < best_eval_loss:
                 wandb.run.summary["best_eval_loss"] = total_eval_loss
                 best_eval_loss = total_eval_loss
-                model.save_pretrained(config.output_path)
-                tokenizer.save_pretrained(config.output_path)
+                model.save_pretrained(
+                    f'{config.output_path}/{config.model_name.split("/")[-1]}')
+                tokenizer.save_pretrained(
+                    f'{config.output_path}/{config.model_name.split("/")[-1]}')
 
 
 def train_with_sweeps(dataloader, metrics, config_path, wandb_project="t5-multirc-finetune", wandb_log_model="checkpoint"):
