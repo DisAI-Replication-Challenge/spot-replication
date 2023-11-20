@@ -29,19 +29,14 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
         for batch in tqdm(data):
             batch = {k: v.to(device) for k, v in batch.items()}
 
-            outputs = model.generate(batch["input_ids"], attention_mask=batch["attention_mask"],
+            outputs = model.generate(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"],
                                      labels=batch["labels"], return_dict=True)
 
-            decoded_preds = tokenizer.batch_decode(
-                outputs.detach().cpu().numpy(), skip_special_tokens=True)
-            decoded_preds = [text.strip() for text in decoded_preds]
-
-            labels_ids = batch["labels"].detach().cpu().numpy()
-            labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-
-            decoded_labels = tokenizer.batch_decode(
-                labels_ids, skip_special_tokens=True)
-            decoded_labels = [text.strip() for text in decoded_labels]
+            decoded_labels, decoded_preds = dataloader.postprocess(
+                labels=batch["labels"].detach().cpu().numpy(),
+                preds=outputs.logits.detach().cpu().numpy(),
+                tokenizer=tokenizer,
+            )
 
             scores = dict()
 
