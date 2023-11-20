@@ -1393,22 +1393,34 @@ TASK_MAPPING = OrderedDict([
     ('super_glue', (BoolQ, CB, COPA, MultiRC, Record, SuperGLUERTE, WIC, WSC)),
     ('nli', (ANLI, CB, DocNLI, MNLI, QNLI, RTE, SNLI)),
     ('semantic_similarity', (CxC, MRPC, QQP, STSB)),
-    ('qa', (MRQA, Squad, TriviaQA, SearchQA, HotPotQA)),  # newsqa missing
+    ('qa', (MRQA, Squad, TriviaQA, SearchQA, HotPotQA, NewsQA)),  # newsqa missing
 ])
 
 
 class MixtureOfDatasets(Dataset):
     def __init__(self, datasets, split='train'):
-        self.datasets = datasets
+        self.datasets = []
+        for dataset in datasets:
+            self.datasets.append(DatasetOption.get(dataset)())
+
         self.split = split
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy),
+            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
         ]
+        self.load_dataset()
 
     def load_dataset(self):
+        self.dataset = []
         for dataset in self.datasets:
             dataset.load_dataset()
+            data = dataset.dataset[self.split]
+            self.dataset.extend(data)
+
+        self.dataset = DatasetDict({
+            'train': self.dataset,
+            'valid': []
+        })
 
     def preprocess(self, x):
         return x

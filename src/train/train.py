@@ -44,8 +44,9 @@ def train_loop(config, dataloader, metrics):
         train_data, _, _ = preprocess_data(
             dataloader, tokenizer, test_set=False)
         # train test split
-        train_data, valid_data = train_data.train_test_split(
-            test_size=0.1, shuffle=True)
+        loader = train_data.train_test_split(
+            test_size=0.2, shuffle=True)
+        train_data, valid_data = loader['train'], loader['test']
 
         train_dataloader = DataLoader(
             train_data, shuffle=True, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True
@@ -96,7 +97,7 @@ def train_loop(config, dataloader, metrics):
                         decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                             decoded_labels, decoded_preds)
                     value = metric.compute(decoded_labels, decoded_preds)
-                    training_metrics[f"train_{metric.name}"] += value.detach().float()
+                    training_metrics[f"train_{metric.name}"] += value[metric.key]
 
                 loss.backward()
                 optimizer.step()
@@ -124,7 +125,7 @@ def train_loop(config, dataloader, metrics):
                             decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                                 decoded_labels, decoded_preds)
                         valid_metrics[f"valid_{metric.name}"] += metric.compute(
-                            decoded_labels, decoded_preds).detach().float()
+                            decoded_labels, decoded_preds)[metric.key]
 
             total_train_loss = total_loss / len(train_dataloader)
             total_eval_loss = eval_loss / len(eval_dataloader)

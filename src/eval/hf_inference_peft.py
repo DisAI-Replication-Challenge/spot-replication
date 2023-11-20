@@ -34,7 +34,7 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
 
             decoded_labels, decoded_preds = dataloader.postprocess(
                 labels=batch["labels"].detach().cpu().numpy(),
-                preds=outputs.logits.detach().cpu().numpy(),
+                preds=outputs.detach().cpu().numpy(),
                 tokenizer=tokenizer,
             )
 
