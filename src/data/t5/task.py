@@ -34,7 +34,7 @@ class Dataset:
         text = re.sub(r'\s+', ' ', text)
         return text
 
-    def preprocess(self):
+    def preprocess(self, x):
         return NotImplementedError
 
     def postprocess(self, labels, preds, tokenizer):
@@ -521,7 +521,7 @@ class YelpPolarity(Dataset):
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
         ]
 
-    def preprocessor(self, x):
+    def preprocess(self, x):
         return {
             'inputs': f'sentence: {x["text"]}',
             'targets': str(x['label']),

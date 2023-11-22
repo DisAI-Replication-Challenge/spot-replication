@@ -31,9 +31,10 @@ def train_loop(config, dataloader, metrics):
 
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
-            prompt_tuning_init=PromptTuningInit.TEXT,
+            # prompt_tuning_init=PromptTuningInit.TEXT,
+            prompt_tuning_init=PromptTuningInit.RANDOM,
             num_virtual_tokens=8,
-            prompt_tuning_init_text=config.prompt_init_text,
+            # prompt_tuning_init_text=config.prompt_init_text,
             tokenizer_name_or_path=config.model_name,
         )
 

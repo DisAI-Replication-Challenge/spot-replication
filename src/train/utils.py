@@ -1,6 +1,7 @@
 import yaml
 from transformers import TrainingArguments
 from torch.optim import AdamW, Adamax, Adagrad, Adadelta, SparseAdam, Adam
+from transformers import Adafactor
 
 
 def create_arguments(num_samples, config, metrics):
@@ -81,6 +82,12 @@ def get_optimizer(config, model):
         return Adamax(
             model.parameters(),
             lr=optimizer_lr
+        )
+    elif optimizer == 'Adafactor':
+        return Adafactor(
+            model.parameters(),
+            lr=optimizer_lr,
+            scale_parameter=False,
         )
 
     return Adam(

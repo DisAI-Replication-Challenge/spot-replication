@@ -27,15 +27,20 @@ def preprocess_data(dataloader, tokenizer, max_input_length=512, max_target_leng
 
         return None, None, test_data_tokenized
     else:
-        logging.info("Preprocessing train and validation data")
+        logging.info("Preprocessing train data")
         train_data = dataloader.dataset['train'].map(dataloader.preprocess)
-        valid_data = dataloader.dataset['validation'].map(
-            dataloader.preprocess)
-
-        logging.info("Tokenizing train and validation data")
+        logging.info("Tokenizing train data")
         train_data_tokenized = train_data.map(
             func, batched=True, remove_columns=remove_columns)
-        valid_data_tokenized = valid_data.map(
-            func, batched=True, remove_columns=remove_columns)
+
+        # find whether validation split exists in dataloader.dataset
+        valid_data_tokenized = None
+        if 'validation' in dataloader.dataset:
+            logging.info("Preprocessing validation data")
+            valid_data = dataloader.dataset['validation'].map(
+                dataloader.preprocess)
+            logging.info("Tokenizing validation data")
+            valid_data_tokenized = valid_data.map(
+                func, batched=True, remove_columns=remove_columns)
 
         return train_data_tokenized, valid_data_tokenized, None
