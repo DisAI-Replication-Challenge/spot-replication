@@ -153,9 +153,9 @@ def train_loop(config, dataloader, metrics):
                 wandb.run.summary["best_eval_loss"] = total_eval_loss
                 best_eval_loss = total_eval_loss
                 model.save_pretrained(
-                    f'{config.output_path}/{config.model_name.split("/")[-1]}')
+                    f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}')
                 tokenizer.save_pretrained(
-                    f'{config.output_path}/{config.model_name.split("/")[-1]}')
+                    f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}')
 
 
 def train_with_sweeps(dataloader, metrics, config_path, wandb_project="t5-multirc-finetune", wandb_log_model="checkpoint"):

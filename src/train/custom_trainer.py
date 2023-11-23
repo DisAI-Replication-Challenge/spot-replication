@@ -44,9 +44,5 @@ class CustomTrainer:
         config = namedtuple('config', config.keys())(*config.values())
         results = inference(config, dataloader, metrics)
 
-        wandb_log = dict()
-        for metric in metrics:
-            wandb_log[f"test_{metric.name}"] = results[metric.name]
-
-        wandb.log(wandb_log, commit=True)
+        wandb.log(results, commit=True)
         wandb.finish()

@@ -68,6 +68,7 @@ class Dataset:
 class Record(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='record', split=split)
+        self.name = 'record'
         self.metrics = [
             Metric(name='Deduplicate metric',
                    compute=metrics.deduplicate_metric(metrics.squad),
@@ -154,6 +155,7 @@ class Record(Dataset):
 class STSB(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='stsb', split=split)
+        self.name = 'stsb'
         self.metrics = [
             Metric(name='Pearson coefficient',
                    calculate=metrics.pearson_corrcoef,
@@ -196,6 +198,7 @@ class STSB(Dataset):
 class WSC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='wsc.fixed', split=split)
+        self.name = 'wsc'
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
         ]
@@ -254,6 +257,7 @@ class WSC(Dataset):
 class MultiRC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='multirc', split=split)
+        self.name = 'multirc'
         self.label_names = self.dataset["train"].features["label"].names
         self.metrics = [
             Metric(name='F1 over all answers',
@@ -293,6 +297,7 @@ class MultiRC(Dataset):
 class TriviaQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='trivia_qa', subset='rc', split=split)
+        self.name = 'trivia_qa'
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
         ]
@@ -360,6 +365,7 @@ class TriviaQA(Dataset):
 class Squad(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='squad', split=split)
+        self.name = 'squad'
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
         ]
@@ -387,6 +393,7 @@ class Squad(Dataset):
 class MRQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='mrqa', split=split)
+        self.name = 'mrqa'
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
         ]
@@ -411,6 +418,7 @@ class MRQA(Dataset):
 class DROP(Dataset):  # need to check in T5 or PromptTuning
     def __init__(self, split='train'):
         super().__init__(benchmark_name='drop', split=split)
+        self.name = 'drop'
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
         ]
@@ -429,6 +437,7 @@ class DROP(Dataset):  # need to check in T5 or PromptTuning
 class PIQA(Dataset):  # need to check in T5 or PromptTuning
     def __init__(self, split='train'):
         super().__init__(benchmark_name='piqa', split=split)
+        self.name = 'piqa'
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
         ]
@@ -443,6 +452,7 @@ class PIQA(Dataset):  # need to check in T5 or PromptTuning
 class SocialIQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='social_i_qa', split=split)
+        self.name = 'social_i_qa'
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
         ]
@@ -457,6 +467,7 @@ class SocialIQA(Dataset):
 class MRPC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='mrpc', split=split)
+        self.name = 'mrpc'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -477,6 +488,7 @@ class MRPC(Dataset):
 class COLA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='cola', split=split)
+        self.name = 'cola'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -497,6 +509,7 @@ class COLA(Dataset):
 class SST2(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='sst2', split=split)
+        self.name = 'sst2'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -516,6 +529,7 @@ class SST2(Dataset):
 class YelpPolarity(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='yelp_polarity', split=split)
+        self.name = 'yelp_polarity'
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
@@ -531,6 +545,7 @@ class YelpPolarity(Dataset):
 class QQP(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='qqp', split=split)
+        self.name = 'qqp'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -552,6 +567,7 @@ class QQP(Dataset):
 class MNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='mnli', split=split)
+        self.name = 'mnli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -571,6 +587,7 @@ class MNLI(Dataset):
 class SNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='snli', split=split)
+        self.name = 'snli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -590,6 +607,7 @@ class SNLI(Dataset):
 class MultiNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='multi_nli', split=split)
+        self.name = 'multi_nli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -609,6 +627,7 @@ class MultiNLI(Dataset):
 class DocNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='saattrupdan/doc-nli', split=split)
+        self.name = 'doc_nli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -628,6 +647,7 @@ class DocNLI(Dataset):
 class QNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='qnli', split=split)
+        self.name = 'qnli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -647,6 +667,7 @@ class QNLI(Dataset):
 class RTE(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='rte', split=split)
+        self.name = 'rte'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -666,6 +687,7 @@ class RTE(Dataset):
 class WNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='wnli', split=split)
+        self.name = 'wnli'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -685,6 +707,7 @@ class WNLI(Dataset):
 class BoolQ(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='boolq', split=split)
+        self.name = 'boolq'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -704,6 +727,7 @@ class BoolQ(Dataset):
 class SuperGLUERTE(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='rte', split=split)
+        self.name = 'supeglue_rte'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -723,6 +747,7 @@ class SuperGLUERTE(Dataset):
 class CB(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='cb', split=split)
+        self.name = 'cb'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -744,6 +769,7 @@ class CB(Dataset):
 class COPA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='copa', split=split)
+        self.name = 'copa'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -763,6 +789,7 @@ class COPA(Dataset):
 class WIC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='wic', split=split)
+        self.name = 'wic'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -782,6 +809,7 @@ class WIC(Dataset):
 class WinoGrande(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='winogrande', subset='winogrande_xl', split=split)
+        self.name = 'winogrande'
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
@@ -799,6 +827,7 @@ class ANLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='anli', split=split)
         self.label_names = self.dataset["train"].features["label"].names
+        self.name = 'anli'
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
@@ -817,6 +846,7 @@ class ANLI(Dataset):
 class GOEmotions(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='go_emotions', subset='simplified', split=split)
+        self.name = 'go_emotions'
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
@@ -836,6 +866,7 @@ class GOEmotions(Dataset):
 class Sentiment140(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='sentiment140', split=split)
+        self.name = 'sentiment140'
         self.label_names = self.dataset["train"].features["label"].names
 
         self.metrics = [
@@ -855,6 +886,7 @@ class Sentiment140(Dataset):
 class SearchQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='search_qa', subset='train_test_val', split=split)
+        self.name = 'search_qa'
 
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
@@ -872,6 +904,7 @@ class SearchQA(Dataset):
 class HotPotQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='hotpot_qa', subset='fullwiki', split=split)
+        self.name = 'hotpot_qa'
 
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
@@ -897,6 +930,7 @@ class HotPotQA(Dataset):
 class NQ_Open(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='nq_open', split=split)
+        self.name = 'nq_open'
 
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
@@ -915,6 +949,7 @@ class NQ_Open(Dataset):
 class CosmosQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='cosmos_qa', split=split)
+        self.name = 'cosmos_qa'
 
         self.metrics = [
             Metric(name='Squad', compute=metrics.squad, key='f1'),
@@ -932,6 +967,7 @@ class CosmosQA(Dataset):
 class HellaSwag(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='Rowan/hellaswag', split=split)
+        self.name = 'hella_swag'
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
@@ -949,6 +985,7 @@ class HellaSwag(Dataset):
 class CommonGen(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='common_gen', split=split)
+        self.name = 'common_gen'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1'),
@@ -965,6 +1002,7 @@ class CommonGen(Dataset):
 class DART(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='dart', split=split)
+        self.name = 'dart'
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1'),
         ]
@@ -981,16 +1019,19 @@ class DART(Dataset):
 class E2ENLG(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='e2e_nlg', split=split)
+        self.name = 'e2e_nlg'
 
 
 class SchemaDialog(Dataset):
     def __init__(self, split='train'):
         super().__init__(subset='schema_guided_dstc8', split=split)
+        self.name = 'schema_dialog'
 
 
 class WebNLG(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='web_nlg_en', split=split)
+        self.name = 'web_nlg'
 
         self.metrics = [
             Metric(name='Bleu', compute=metrics.bleu, key='bleu')
@@ -1008,6 +1049,7 @@ class WebNLG(Dataset):
 class WikiAuto(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='wiki_auto_asset', split=split)
+        self.name = 'wiki_auto'
 
         self.metrics = [
             Metric(name='Bleu', compute=metrics.bleu, key='bleu')
@@ -1023,6 +1065,7 @@ class WikiAuto(Dataset):
 class XSUM(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='xsum', split=split)
+        self.name = 'xsum'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1055,6 +1098,7 @@ class WMT(Dataset):
         super().__init__(benchmark_name=benchmark_name, subset=subset, split=split)
         self.source_language = source_language
         self.target_language = target_language
+        self.name = f'{source_language}_{target_language}'
 
         self.metrics = [
             Metric(name='Bleu', compute=metrics.bleu, key='bleu')
@@ -1100,6 +1144,7 @@ class WMT(Dataset):
 class AESLC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='aeslc', split=split)
+        self.name = 'aeslc'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1128,6 +1173,7 @@ class AESLC(Dataset):
 class BILLSUM(Dataset):  # Need to check because the dataset have also title
     def __init__(self, split='train'):
         super().__init__(benchmark_name='billsum', split=split)
+        self.name = 'billsum'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1156,6 +1202,7 @@ class BILLSUM(Dataset):  # Need to check because the dataset have also title
 class GIGAWORD(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gigaword', split=split)
+        self.name = 'gigaword'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1184,6 +1231,7 @@ class GIGAWORD(Dataset):
 class MultiNews(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='multi_news', split=split)
+        self.name = 'multi_news'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1212,6 +1260,7 @@ class MultiNews(Dataset):
 class Newsroom(Dataset):  # Datasets also include title of the text
     def __init__(self, split='train'):
         super().__init__(benchmark_name='newsroom', split=split)
+        self.name = 'newsroom'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1240,6 +1289,7 @@ class Newsroom(Dataset):  # Datasets also include title of the text
 class SamSum(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='samsum', split=split)
+        self.name = 'samsum'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1268,6 +1318,7 @@ class SamSum(Dataset):
 class C4(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='c4', subset='en', split=split)
+        self.name = 'c4'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1283,6 +1334,7 @@ class C4(Dataset):
 class CNN(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='cnn_dailymail', subset='3.0.0', split=split)
+        self.name = 'cnn_dailymail'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
@@ -1298,6 +1350,7 @@ class CNN(Dataset):
 class WikiLingua(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='gem', subset='wiki_lingua_english_en', split=split)
+        self.name = 'wiki_lingua'
         self.metrics = [
             Metric(name='Rogue', compute=metrics.rouge, key='rouge1')
         ]
@@ -1315,6 +1368,7 @@ class WikiLingua(Dataset):
 class CxC(Dataset):
     def __init__(self, split='train', path='../../../data/sts-dataset.csv'):
         self.benchmark_name = 'cxc'
+        self.name = 'cxc'
         self.split = split
 
         self.metrics = [
@@ -1368,6 +1422,7 @@ class CxC(Dataset):
 class NewsQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='legacy107/newsqa', split=split)
+        self.name = 'newsqa'
         self.metrics = [
             Metric(name='Rogue', compute=metrics.rouge, key='rouge1')
         ]
@@ -1399,6 +1454,7 @@ TASK_MAPPING = OrderedDict([
 
 class MixtureOfDatasets(Dataset):
     def __init__(self, datasets, split='train'):
+        self.name = 'mixture'
         self.datasets = []
         for dataset in datasets:
             self.datasets.append(DatasetOption.get(dataset)())
@@ -1418,8 +1474,8 @@ class MixtureOfDatasets(Dataset):
             self.dataset.extend(data)
 
         self.dataset = DatasetDict({
-            'train': self.dataset,
-            'valid': []
+            'train': HFDataset.from_pandas(pd.DataFrame(self.dataset)),
+            'valid': HFDataset.from_pandas(pd.DataFrame([])),
         })
 
     def preprocess(self, x):

@@ -23,7 +23,10 @@ def load_model_tokenizer(model_name):
 def eval_data(model, tokenizer, data, metrics, dataloader):
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
-    results = list()
+    
+    test_metrics = {}
+    for metric in metrics:
+        test_metrics[f"test_{metric.name}"] = 0.0
 
     with torch.no_grad():
         for batch in tqdm(data):
@@ -38,22 +41,21 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
                 tokenizer=tokenizer,
             )
 
-            scores = dict()
-
             for metric in metrics:
                 if metric.name in ["F1 over all answers"]:
                     decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                         decoded_labels, decoded_preds)
-                scores[metric.name] = metric.compute(
-                    decoded_labels, decoded_preds)[metric.key]
+                value = metric.compute(decoded_labels, decoded_preds)
+                test_metrics[f"test_{metric.name}"] += value[metric.key]
+    
+    for metric in metrics:
+        test_metrics[f"test_{metric.name}"] = test_metrics[f"test_{metric.name}"] / len(data)
 
-            results.append(scores)
-
-    return results
+    return test_metrics
 
 
 def inference(config, dataloader, metrics):
-    model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}'
+    model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}'
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
