@@ -13,7 +13,7 @@ if __name__ == "__main__":
                         help='Use wandb sweeps')
     parser.add_argument('--use_hf', action='store_true',
                         help='Use huggingface trainer')
-    parser.add_argument('--config_path', type=str, default='../configs/config.yaml',
+    parser.add_argument('--config_path', type=str, default='./configs/config.yaml',
                         help='Path to config file')
     parser.add_argument('--wandb_project', type=str, default='t5-multirc-finetune',
                         help='Wandb project name')

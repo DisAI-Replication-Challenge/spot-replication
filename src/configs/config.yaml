@@ -1,11 +1,11 @@
 learning_rate: 0.3
 optimizer: Adafactor
-batch_size: 32
+batch_size: 16
 epochs: 3
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
-model_name: google/t5-v1_1-base
+model_name: t5-base
 output_path: ../results
 prompt_init_text: "Answer True or False: "
 eval_strategy: steps
