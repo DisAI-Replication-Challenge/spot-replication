@@ -169,3 +169,7 @@ Bloom example.ipynb
 T5 training.ipynb
 Test.ipynb
 wandb.conf
+
+results/*
+
+Test multirc.ipynb
