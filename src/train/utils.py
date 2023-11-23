@@ -88,11 +88,11 @@ def get_optimizer(config, model):
             model.parameters(),
             lr=optimizer_lr,
             scale_parameter=False,
+            relative_step=False,
         )
 
     return Adam(
         model.parameters(),
-
         lr=optimizer_lr
     )
 

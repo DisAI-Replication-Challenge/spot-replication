@@ -45,7 +45,7 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
                     decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                         decoded_labels, decoded_preds)
                 scores[metric.name] = metric.compute(
-                    decoded_labels, decoded_preds).detach().float()
+                    decoded_labels, decoded_preds)[metric.key]
 
             results.append(scores)
 
