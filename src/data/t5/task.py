@@ -1448,7 +1448,13 @@ TASK_MAPPING = OrderedDict([
     ('super_glue', (BoolQ, CB, COPA, MultiRC, Record, SuperGLUERTE, WIC, WSC)),
     ('nli', (ANLI, CB, DocNLI, MNLI, QNLI, RTE, SNLI)),
     ('semantic_similarity', (CxC, MRPC, QQP, STSB)),
-    ('qa', (MRQA, Squad, TriviaQA, SearchQA, HotPotQA, NewsQA)),  # newsqa missing
+    ('sentiment_analysis', (GOEmotions, Sentiment140, SST2, YelpPolarity)),
+    ('qa', (MRQA, Squad, NewsQA, TriviaQA, SearchQA, HotPotQA, NQ_Open)),
+    ('commnonsense_reasoning', (CosmosQA, HellaSwag, PIQA, SocialIQA, WinoGrande)), # alfanli is missing
+    ('translation', (WMT)), # three combination of languages
+    ('summary', (AESLC, BILLSUM, CNN, WikiLingua, GIGAWORD, MultiNews, Newsroom, SamSum, XSUM)),
+    ('nlg', (CommonGen, DART, E2ENLG, SchemaDialog, WebNLG, WikiAuto, XSUM, WikiLingua)),
+    ('c4', (C4)),
 ])
 
 
