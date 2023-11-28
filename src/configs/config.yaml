@@ -1,6 +1,6 @@
 learning_rate: 0.3
 optimizer: Adafactor
-batch_size: 16
+batch_size: 32
 epochs: 3
 training_steps: 30000
 eval_steps: 10000

@@ -1,4 +1,5 @@
 from functools import partial
+from accelerate import Accelerator
 import os
 from peft import get_peft_model, PromptTuningInit, PromptTuningConfig, TaskType
 import torch
@@ -29,6 +30,8 @@ def train_loop(config, dataloader, metrics):
     with wandb.init(config=config):
         config = wandb.config
 
+        accelerator = Accelerator()
+
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
             # prompt_tuning_init=PromptTuningInit.TEXT,
@@ -57,14 +60,19 @@ def train_loop(config, dataloader, metrics):
             valid_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True)
 
         optimizer = get_optimizer(config, model)
+
+        train_dataloader, eval_dataloader, model, optimizer = accelerator.prepare(
+            train_dataloader, eval_dataloader, model, optimizer
+        )
+
         lr_scheduler = get_linear_schedule_with_warmup(
             optimizer=optimizer,
             num_warmup_steps=config.num_warmup_steps,
             num_training_steps=(len(train_dataloader) * config.epochs),
         )
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = model.to(device)
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        # model = model.to(device)
 
         best_eval_loss = float("inf")
 
@@ -80,7 +88,7 @@ def train_loop(config, dataloader, metrics):
                 valid_metrics[f"valid_{metric.name}"] = 0.0
 
             for batch in tqdm(train_dataloader):
-                batch = {k: v.to(device) for k, v in batch.items()}
+                # batch = {k: v.to(device) for k, v in batch.items()}
                 outputs = model(
                     input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
                 loss = outputs.loss
@@ -100,7 +108,8 @@ def train_loop(config, dataloader, metrics):
                     value = metric.compute(decoded_labels, decoded_preds)
                     training_metrics[f"train_{metric.name}"] += value[metric.key]
 
-                loss.backward()
+                # loss.backward()
+                accelerator.backward(loss)
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
@@ -108,7 +117,7 @@ def train_loop(config, dataloader, metrics):
             model.eval()
             with torch.no_grad():
                 for batch in tqdm(eval_dataloader):
-                    batch = {k: v.to(device) for k, v in batch.items()}
+                    # batch = {k: v.to(device) for k, v in batch.items()}
                     outputs = model(
                         input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
                     loss = outputs.loss

@@ -1,5 +1,5 @@
-from utils import _prepare_prompt_learning_config
-from prompt_tuning import PromptTuningForSeq2SeqLM
+from .utils import _prepare_prompt_learning_config
+from .prompt_tuning import PromptTuningForSeq2SeqLM
 
 
 def get_prompt_tuning_model(model, peft_config, adapter_name='default'):

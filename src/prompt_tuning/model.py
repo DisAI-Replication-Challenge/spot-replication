@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoTokenizer
 import math
-from config import PromptTuningInit
+from .config import PromptTuningInit
 
 
 class PromptEmbedding(torch.nn.Module):

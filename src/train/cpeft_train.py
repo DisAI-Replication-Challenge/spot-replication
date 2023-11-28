@@ -1,4 +1,5 @@
 from functools import partial
+from accelerate import Accelerator
 import os
 import torch
 from torch.utils.data import DataLoader
@@ -26,19 +27,19 @@ def get_model_tokenizer(model_name):
 
 
 def train_loop(config, dataloader, metrics):
-    os.makedirs(config.output_path, exist_ok=True)
+    os.makedirs(config["output_path"], exist_ok=True)
     os.makedirs(
-        f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}', exist_ok=True)
+        f'{config["output_path"]}/{config["model_name"].split("/")[-1]}-{dataloader.name}', exist_ok=True)
 
     with wandb.init(config=config):
         config = wandb.config
 
+        # accelerator = Accelerator()
+
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
-            # prompt_tuning_init=PromptTuningInit.TEXT,
-            prompt_tuning_init=PromptTuningInit.RANDOM,
+            init_type=PromptTuningInit.RANDOM,
             num_virtual_tokens=100,
-            # prompt_tuning_init_text=config.prompt_init_text,
             tokenizer_name_or_path=config.model_name,
         )
 
@@ -61,14 +62,18 @@ def train_loop(config, dataloader, metrics):
             valid_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True)
 
         optimizer = get_optimizer(config, model)
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = model.to(device)
+        # train_dataloader, eval_dataloader, model, optimizer = accelerator.prepare(
+        #     train_dataloader, eval_dataloader, model, optimizer
+        # )
+
         lr_scheduler = get_linear_schedule_with_warmup(
             optimizer=optimizer,
             num_warmup_steps=config.num_warmup_steps,
             num_training_steps=config.training_steps,
         )
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = model.to(device)
 
         best_eval_loss = float("inf")
 
@@ -98,13 +103,14 @@ def train_loop(config, dataloader, metrics):
                 )
 
                 for metric in metrics:
-                    if metric.name in ["F1 over all answers"]:
+                    if metric.name in ["F1 over all answers", "F1 with invalid"]:
                         decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                             decoded_labels, decoded_preds)
                     value = metric.compute(decoded_labels, decoded_preds)
                     training_metrics[f"train_{metric.name}"] += value[metric.key]
 
                 loss.backward()
+                # accelerator.backward(loss)
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()

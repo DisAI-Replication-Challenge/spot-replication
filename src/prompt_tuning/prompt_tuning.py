@@ -1,13 +1,12 @@
-from config import PromptTuningConfig
+from .config import PromptTuningConfig
 import torch
 import os
 from transformers import PreTrainedModel
 from copy import deepcopy
-from safetensors.torch import storage_ptr, storage_size
 import inspect
 from huggingface_hub import hf_hub_download
-from model import PromptEmbedding
-from utils import _prepare_prompt_learning_config, _get_batch_size, get_peft_model_state_dict, infer_device, load_adapter_weights, set_peft_model_state_dict
+from .model import PromptEmbedding
+from .utils import _prepare_prompt_learning_config, _get_batch_size, get_peft_model_state_dict, infer_device, load_adapter_weights, set_peft_model_state_dict
 from transformers.utils import PushToHubMixin
 from accelerate import dispatch_model, infer_auto_device_map
 from accelerate.utils import get_balanced_memory
@@ -103,8 +102,6 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             'output_attentions': output_attentions,
             'output_hidden_states': output_hidden_states,
             'return_dict': return_dict,
-            'position_ids': None,
-            'token_type_ids': None
         })
 
         if inputs_embeds is None:
@@ -120,7 +117,7 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
         prompts = self.get_prompt(batch_size=batch_size)
         prompts = prompts.to(inputs_embeds.dtype)
         inputs_embeds = torch.cat(
-            (prompts[:, :, prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
+            (prompts[:, : prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
 
         return self.base_model(
             inputs_embeds=inputs_embeds,

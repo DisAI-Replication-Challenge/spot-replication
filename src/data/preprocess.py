@@ -4,7 +4,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-def preprocess_data(dataloader, tokenizer, max_input_length=512, max_target_length=512, padding='max_length', truncation=True, test_set=False):
+def preprocess_data(dataloader, tokenizer, max_input_length=128, max_target_length=512, padding='max_length', truncation=True, test_set=False):
+    max_target_length = dataloader.get_max_target_length(
+        tokenizer, max_target_length)
 
     func = functools.partial(
         dataloader.tokenize,

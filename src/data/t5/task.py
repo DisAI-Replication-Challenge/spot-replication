@@ -17,6 +17,7 @@ class Dataset:
         self.benchmark_name = benchmark_name
         self.subset = subset
         self.split = split
+        self.label_names = None
         self.load_dataset()
 
     def load_dataset(self):
@@ -36,6 +37,11 @@ class Dataset:
 
     def preprocess(self, x):
         return NotImplementedError
+
+    def get_max_target_length(self, tokenizer, default_max_length):
+        if self.label_names is not None:
+            return max([len(tokenizer.encode(label)) for label in self.label_names])
+        return default_max_length
 
     def postprocess(self, labels, preds, tokenizer):
         labels_ids = labels
@@ -484,6 +490,13 @@ class MRPC(Dataset):
             'targets': label_name,
         }
 
+    def postprocess_for_metrics(self, labels, preds):
+        labels = [self.label_names.index(
+            label) if label in self.label_names else -1 for label in labels]
+        preds = [self.label_names.index(
+            pred) if pred in self.label_names else -1 for pred in preds]
+        return labels, preds
+
 
 class COLA(Dataset):
     def __init__(self, split='train'):
@@ -562,6 +575,13 @@ class QQP(Dataset):
             'inputs': f'question1: {x["question1"]} question2: {x["question2"]}',
             'targets': label_name,
         }
+
+    def postprocess_for_metrics(self, labels, preds):
+        labels = [self.label_names.index(
+            label) if label in self.label_names else -1 for label in labels]
+        preds = [self.label_names.index(
+            pred) if pred in self.label_names else -1 for pred in preds]
+        return labels, preds
 
 
 class MNLI(Dataset):
