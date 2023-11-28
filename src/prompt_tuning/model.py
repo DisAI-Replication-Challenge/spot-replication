@@ -1,6 +1,7 @@
 import torch
 from transformers import AutoTokenizer
 import math
+from config import PromptTuningInit
 
 
 class PromptEmbedding(torch.nn.Module):
@@ -12,7 +13,7 @@ class PromptEmbedding(torch.nn.Module):
             config.num_transformer_submodules
         self.embeddings = torch.nn.Embedding(
             total_virtual_tokens, config.token_dim)
-        if init_type == 'text':
+        if init_type == PromptTuningInit.TEXT:
             tokenizer = AutoTokenizer.from_pretrained(
                 config.tokenizer_name_or_path)
             init_text = config.init_text

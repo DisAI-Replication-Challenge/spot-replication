@@ -230,7 +230,7 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
         ).long()
 
     # DONE
-    def get_prompt_embedding_to_save(self, adapter_name):
+    def get_prompt_embedding_to_save(self, adapter_name='default'):
         prompt_encoder = self.prompt_encoder[adapter_name]
         prompt_tokens = (
             self.prompt_tokens[adapter_name]

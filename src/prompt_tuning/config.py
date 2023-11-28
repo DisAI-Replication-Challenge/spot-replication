@@ -4,8 +4,18 @@ from dataclasses import asdict, dataclass
 import json
 import inspect
 from transformers.utils import PushToHubMixin
+import enum
 
 CONFIG_NAME = 'adapter_config.json'
+
+
+class PromptTuningInit(str, enum.Enum):
+    TEXT = 'TEXT'
+    RANDOM = 'RANDOM'
+
+
+class TaskType(str, enum.Enum):
+    SEQ_2_SEQ_LM = 'SEQ_2_SEQ_LM'
 
 
 @dataclass
@@ -14,13 +24,13 @@ class PromptTuningConfig(PushToHubMixin):
     auto_mapping: dict = None
     base_model_or_path: str = None
     revision: str = None
-    task_type: str = 'SEQ_2_SEQ_LM'
+    task_type: str = TaskType.SEQ_2_SEQ_LM
     inference_mode: bool = False
     num_virtual_tokens: int = 20
     token_dim: int = None
     num_transformer_submodules: int = None
     num_layers: int = None
-    init_type: str = 'random'
+    init_type: str = PromptTuningInit.RANDOM
     init_text: str = None
     num_attention_heads: int = None
     tokenizer_name_or_path: str = 't5-base'
