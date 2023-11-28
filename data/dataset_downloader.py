@@ -19,7 +19,7 @@ extended_datasets = {
     'sentiment140': [],
     'c4': ['en'],
     'squad': [],
-    'newsqa': ['combined-csv'],  # need to check,
+    'legacy107/newsqa': [],  # need to check,
     'trivia_qa': ['rc'],  # need to check,
     'search_qa': ['train_test_val'],  # need to check,
     'hotpot_qa': ['fullwiki'],  # need to check,
@@ -29,7 +29,7 @@ extended_datasets = {
     'piqa': [],
     'social_i_qa': [],
     'winogrande': ['winogrande_xl'],
-    'gem': ['common_gen', 'dart', 'e2e_nlg', 'schema_guided_dialog', 'web_nlg_en', 'wiki_auto_asset', 'xsum'],
+    'gem': ['common_gen', 'dart', 'e2e_nlg', 'schema_guided_dialog', 'web_nlg_en', 'wiki_auto_asset_turk', 'xsum', 'wiki_lingua_english_en'],
     'drop': [],
     'wmt14': ['de-en'],
     'wmt15': ['fr-en'],
@@ -54,9 +54,9 @@ original_datasets = {
     'snli': [],  # done
     'go_emotions': ['simplified'],
     'sentiment140': [],
-    # 'c4': ['en'],  # done
+    'c4': ['en'],  # done
     'squad': [],  # done
-    # 'newsqa': ['combined-json'],  # done need download manually
+    'legacy107/newsqa': [],  # need to check,
     'trivia_qa': ['rc'],  # done
     'search_qa': ['train_test_val'],  # done
     'hotpot_qa': ['fullwiki'],  # done
@@ -66,7 +66,7 @@ original_datasets = {
     'piqa': [],
     'social_i_qa': [],
     'winogrande': ['winogrande_xl'],
-    'gem': ['common_gen', 'dart', 'e2e_nlg', 'schema_guided_dialog', 'web_nlg_en', 'wiki_auto_asset', 'xsum'],
+    'gem': ['common_gen', 'dart', 'e2e_nlg', 'schema_guided_dialog', 'web_nlg_en', 'wiki_auto_asset_turk', 'xsum', 'wiki_lingua_english_en'],
     'drop': [],  # done
     'wmt14': ['de-en'],
     'wmt15': ['fr-en'],
@@ -101,11 +101,12 @@ original_datasets = {
 
 def download_datasets():
     for key, value in original_datasets.items():
+        print(f'Downloading {key}')
         if len(value) == 0:
-            dataset = load_dataset(key, cache_dir=cache_path)
+            dataset = load_dataset(key)
         else:
             for subset in value:
-                dataset = load_dataset(key, subset, cache_dir=cache_path)
+                dataset = load_dataset(key, subset)
 
 
 if __name__ == '__main__':

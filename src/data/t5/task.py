@@ -1259,12 +1259,16 @@ class MultiNews(Dataset):
 
 class Newsroom(Dataset):  # Datasets also include title of the text
     def __init__(self, split='train'):
-        super().__init__(benchmark_name='newsroom', split=split)
+        self.benchmark_name = 'newsroom'
+        self.split = split
         self.name = 'newsroom'
 
         self.metrics = [
             Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
         ]
+
+    def load_dataset(self):
+        self.dataset = hfload_dataset(self.benchmark_name, '../data/newsroom')
 
     def preprocess(self, x):
         """Convert a summarization dataset to a text2text pair.
@@ -1443,6 +1447,27 @@ class NewsQA(Dataset):
         }
 
 
+class Race(Dataset):
+    def __init__(self, split='train'):
+        super().__init__(benchmark_name='race', subset='middle', split=split)
+        self.name = 'race'
+        self.metrics = [
+            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+        ]
+
+    def preprocess(self, x):
+        # split options
+        A = x['options'][0]
+        B = x['options'][1]
+        C = x['options'][2]
+        D = x['options'][3]
+        label2id = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+        return {
+            'inputs': f'question: {x["question"]} context: {x["article"]} choice0: {A} choice1: {B} choice2: {C} choice3: {D}',
+            'targets': str(label2id[x['answer']]),
+        }
+
+
 TASK_MAPPING = OrderedDict([
     ('glue', (COLA, SST2, MRPC, QQP, STSB, MNLI, QNLI, RTE)),
     ('super_glue', (BoolQ, CB, COPA, MultiRC, Record, SuperGLUERTE, WIC, WSC)),
@@ -1450,9 +1475,11 @@ TASK_MAPPING = OrderedDict([
     ('semantic_similarity', (CxC, MRPC, QQP, STSB)),
     ('sentiment_analysis', (GOEmotions, Sentiment140, SST2, YelpPolarity)),
     ('qa', (MRQA, Squad, NewsQA, TriviaQA, SearchQA, HotPotQA, NQ_Open)),
-    ('commnonsense_reasoning', (CosmosQA, HellaSwag, PIQA, SocialIQA, WinoGrande)), # alfanli is missing
-    ('translation', (WMT)), # three combination of languages
-    ('summary', (AESLC, BILLSUM, CNN, WikiLingua, GIGAWORD, MultiNews, Newsroom, SamSum, XSUM)),
+    ('commnonsense_reasoning', (CosmosQA, HellaSwag,
+     PIQA, SocialIQA, WinoGrande)),  # alfanli is missing
+    ('translation', (WMT)),  # three combination of languages
+    ('summary', (AESLC, BILLSUM, CNN, WikiLingua,
+     GIGAWORD, MultiNews, Newsroom, SamSum, XSUM)),
     ('nlg', (CommonGen, DART, E2ENLG, SchemaDialog, WebNLG, WikiAuto, XSUM, WikiLingua)),
     ('c4', (C4)),
 ])
@@ -1547,6 +1574,7 @@ DATASET_MAPPING = OrderedDict([
     ('wiki_lingua', WikiLingua),
     ('cxc', CxC),
     ('newsqa', NewsQA),
+    ('race', Race),
 ])
 
 
