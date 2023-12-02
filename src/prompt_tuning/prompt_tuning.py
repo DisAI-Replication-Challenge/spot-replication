@@ -117,7 +117,7 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
         prompts = self.get_prompt(batch_size=batch_size)
         prompts = prompts.to(inputs_embeds.dtype)
         inputs_embeds = torch.cat(
-            (prompts[:, : prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
+            (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
 
         return self.base_model(
             inputs_embeds=inputs_embeds,
@@ -134,8 +134,8 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             self.base_model_prepare_encoder_decoder_kwargs_for_generation
         )
         try:
-            kwargs['position_ids'] = None
-            kwargs['token_type_ids'] = None
+            # kwargs['position_ids'] = None
+            # kwargs['token_type_ids'] = None
 
             kwargs = deepcopy(kwargs)
 
@@ -149,8 +149,8 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             prompts = prompts.to(inputs_embeds.dtype)
 
             inputs_embeds = torch.cat(
-                (prompts[:, :, prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
-            kwargs['inouts_embeds'] = inputs_embeds
+                (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
+            kwargs['inputs_embeds'] = inputs_embeds
 
             if 'attention_mask' in kwargs:
                 prefix_attention_mask = torch.ones(batch_size, prompt_config.num_virtual_tokens).to(
@@ -158,7 +158,6 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
                 )
                 kwargs['attention_mask'] = torch.cat(
                     (prefix_attention_mask, kwargs['attention_mask']), dim=1)
-
             return self.base_model.generate(**kwargs)
         except:
             self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation

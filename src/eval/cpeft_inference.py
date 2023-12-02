@@ -10,7 +10,7 @@ from data.preprocess import preprocess_data
 def load_model_tokenizer(model_name):
     config = PromptTuningConfig.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(
-        config.base_model_name_or_path)
+        config.tokenizer_name_or_path)
     model = PromptTuningForSeq2SeqLM.from_pretrained(model, model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -26,7 +26,8 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
 
     test_metrics = {}
     for metric in metrics:
-        test_metrics[f"test_{metric.name}"] = 0.0
+        for key in metric.key:
+            test_metrics[f"test_{key}"] = 0.0
 
     with torch.no_grad():
         for batch in tqdm(data):
@@ -42,15 +43,17 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
             )
 
             for metric in metrics:
-                if metric.name in ["F1 over all answers"]:
+                if metric.name in ["F1 over all answers", "F1 with invalid"]:
                     decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                         decoded_labels, decoded_preds)
                 value = metric.compute(decoded_labels, decoded_preds)
-                test_metrics[f"test_{metric.name}"] += value[metric.key]
+                for key in metric.key:
+                    test_metrics[f"test_{key}"] += value[key]
 
     for metric in metrics:
-        test_metrics[f"test_{metric.name}"] = test_metrics[f"test_{metric.name}"] / \
-            len(data)
+        for key in metric.key:
+            test_metrics[f"test_{key}"] = test_metrics[f"test_{key}"] / \
+                len(data)
 
     return test_metrics
 

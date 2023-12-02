@@ -2,6 +2,7 @@ import babel
 from datasets import load_dataset as hfload_dataset
 import numpy as np
 import pandas as pd
+import regex
 import re
 from datasets import DatasetDict
 from datasets import Dataset as HFDataset
@@ -19,6 +20,11 @@ class Dataset:
         self.split = split
         self.label_names = None
         self.load_dataset()
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'test',
+        }
 
     def load_dataset(self):
         if self.subset is None:
@@ -28,11 +34,11 @@ class Dataset:
             self.dataset = hfload_dataset(
                 self.benchmark_name, self.subset)  # , self.split, cache_dir='../../../data/.cache')
 
-    def _pad_punctuation(text):
+    def _pad_punctuation(self, text):
         """Adds spaces around punctuation."""
-        text = re.sub(r'([^_\s\p{N}\p{L}\p{M}])', r' \1 ', str(text))
+        text = regex.sub(r'([^_\s\p{N}\p{L}\p{M}])', r' \1 ', str(text))
         # Collapse consecutive whitespace into one space.
-        text = re.sub(r'\s+', ' ', text)
+        text = regex.sub(r'\s+', ' ', text)
         return text
 
     def preprocess(self, x):
@@ -43,16 +49,17 @@ class Dataset:
             return max([len(tokenizer.encode(label)) for label in self.label_names])
         return default_max_length
 
-    def postprocess(self, labels, preds, tokenizer):
-        labels_ids = labels
-        labels_ids[labels_ids == -100] = tokenizer.pad_token_id
+    def postprocess(self, labels, preds, tokenizer, ignore_pad_token_for_loss=True):
 
-        decoded_preds = tokenizer.batch_decode(
-            preds, skip_special_tokens=True)
-        decoded_preds = [text.strip() for text in decoded_preds]
+        if ignore_pad_token_for_loss:
+            labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+            preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
+
+        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
         decoded_labels = tokenizer.batch_decode(
-            labels_ids, skip_special_tokens=True)
+            labels, skip_special_tokens=True)
+        decoded_preds = [text.strip() for text in decoded_preds]
         decoded_labels = [text.strip() for text in decoded_labels]
 
         return decoded_labels, decoded_preds
@@ -63,12 +70,24 @@ class Dataset:
 
         model_inputs = tokenizer(inputs, max_length=max_input_length,
                                  padding=padding, truncation=truncation, return_tensors="pt")
-        labels = tokenizer(targets, max_length=max_target_length,
-                           padding=padding, truncation=truncation, return_tensors="pt")
-        labels = labels["input_ids"]
-        labels[labels == tokenizer.pad_token_id] = -100
-        model_inputs["labels"] = labels
+
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(targets, max_length=max_target_length,
+                               padding=padding, truncation=truncation, return_tensors="pt")
+            labels = labels["input_ids"]
+            labels[labels == tokenizer.pad_token_id] = -100
+            model_inputs["labels"] = labels
+
         return model_inputs
+
+    def postprocess_for_metrics(self, labels, preds):
+        # print(labels)
+        # print(preds)
+        labels = [self.label_names.index(
+            label) if label in self.label_names else -1 for label in labels]
+        preds = [self.label_names.index(
+            pred) if pred in self.label_names else -1 for pred in preds]
+        return labels, preds
 
 
 class Record(Dataset):
@@ -78,7 +97,7 @@ class Record(Dataset):
         self.metrics = [
             Metric(name='Deduplicate metric',
                    compute=metrics.deduplicate_metric(metrics.squad),
-                   key='f1'
+                   key=['f1']
                    )
         ]
 
@@ -162,13 +181,17 @@ class STSB(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='stsb', split=split)
         self.name = 'stsb'
+        self.label_names = [
+            str(np.round(label, decimals=1))
+            for label in np.arange(0, 5.1, 0.1)
+        ]
         self.metrics = [
             Metric(name='Pearson coefficient',
                    calculate=metrics.pearson_corrcoef,
-                   key='pearson_corrcoef'),
+                   key=['pearson_corrcoef']),
             Metric(name='Spearman coefficient',
                    compute=metrics.spearman_corrcoef,
-                   key='spearman_corrcoef')
+                   key=['spearman_corrcoef'])
         ]
 
     def preprocess(self, x):
@@ -205,8 +228,9 @@ class WSC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='wsc.fixed', split=split)
         self.name = 'wsc'
+        self.label_names = self.dataset['train'].features['label'].names
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def _mark_span(text, span_str, span_idx, mark):
@@ -249,13 +273,8 @@ class WSC(Dataset):
         # Add benchmark name at the start
         final_str = f'wsc text: {text}'
 
-        def get_label_name(label):
-            if label == -1:
-                return '<unk>'
-            else:
-                return 'False' if label == 0 else 'True'
-
-        label_name = get_label_name(x['label'])
+        label_name = '<unk>' if x['label'] == - \
+            1 else self.label_names[x['label']]
 
         return {'inputs': final_str, 'targets': label_name, 'idx': x['idx']}
 
@@ -264,14 +283,14 @@ class MultiRC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='multirc', split=split)
         self.name = 'multirc'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
         self.metrics = [
             Metric(name='F1 over all answers',
                    compute=metrics.multirc_f1_over_all_answers,
-                   key='f1'),
+                   key=['f1']),
             Metric(name='Match all',
                    compute=metrics.mean_group_metric(metrics.all_match),
-                   key='exact_match')
+                   key=['exact_match'])
         ]
 
     def _remove_markup(self, text):
@@ -292,20 +311,13 @@ class MultiRC(Dataset):
         ex['inputs'] = f'question: {self._remove_markup(x["question"])} answer: {self._remove_markup(x["answer"])} paragraph: {self._remove_markup(x["paragraph"])}'
         return ex
 
-    def postprocess_for_metrics(self, labels, preds):
-        labels = [self.label_names.index(
-            label) if label in self.label_names else -1 for label in labels]
-        preds = [self.label_names.index(
-            pred) if pred in self.label_names else -1 for pred in preds]
-        return labels, preds
-
 
 class TriviaQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='trivia_qa', subset='rc', split=split)
         self.name = 'trivia_qa'
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
 
     def _triviaqa_question_answer_context(self, x):
@@ -373,13 +385,20 @@ class Squad(Dataset):
         super().__init__(benchmark_name='squad', split=split)
         self.name = 'squad'
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x, include_context=True):
-        a = self._pad_punctuation(x['answers']['text'])
+        a = self._pad_punctuation(x['answers']['text'][0])
         q = self._pad_punctuation(x['question'])
         c = self._pad_punctuation(x['context'])
+
+        target = a
 
         if include_context:
             inputs = f'question: {q} context: {c}'
@@ -388,7 +407,7 @@ class Squad(Dataset):
 
         return {
             'inputs': inputs,
-            'targets': a[0],
+            'targets': target,
             'id': x['id'],
             'context': c,
             'question': q,
@@ -401,7 +420,7 @@ class MRQA(Dataset):
         super().__init__(benchmark_name='mrqa', split=split)
         self.name = 'mrqa'
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
 
     def preprocess(self, x, task_name=None):
@@ -426,8 +445,13 @@ class DROP(Dataset):  # need to check in T5 or PromptTuning
         super().__init__(benchmark_name='drop', split=split)
         self.name = 'drop'
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x):
         answer = self._pad_punctuation(x['answers_spans']['spans'][0])
@@ -444,8 +468,10 @@ class PIQA(Dataset):  # need to check in T5 or PromptTuning
     def __init__(self, split='train'):
         super().__init__(benchmark_name='piqa', split=split)
         self.name = 'piqa'
+        self.label_names = self.dataset['train'].features['label'].names
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -459,9 +485,16 @@ class SocialIQA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='social_i_qa', split=split)
         self.name = 'social_i_qa'
+        self.label_names = ['0', '1', '2']
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x):
         return {
@@ -474,12 +507,12 @@ class MRPC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='mrpc', split=split)
         self.name = 'mrpc'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
             Metric(name='F1 with invalid',
-                   compute=metrics.f1_score_with_invalid, key='f1'),
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+                   compute=metrics.f1_score_with_invalid, key=['f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -490,23 +523,16 @@ class MRPC(Dataset):
             'targets': label_name,
         }
 
-    def postprocess_for_metrics(self, labels, preds):
-        labels = [self.label_names.index(
-            label) if label in self.label_names else -1 for label in labels]
-        preds = [self.label_names.index(
-            pred) if pred in self.label_names else -1 for pred in preds]
-        return labels, preds
-
 
 class COLA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='cola', split=split)
         self.name = 'cola'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
             Metric(name='Matthews correlation', compute=metrics.sklearn_metrics_wrapper(
-                "matthews_corrcoef", metric_post_process_fn=lambda x: 100 * x), key='matthews_corrcoef')
+                "matthews_corrcoef", metric_post_process_fn=lambda x: 100 * x), key=['matthews_corrcoef'])
         ]
 
     def preprocess(self, x):
@@ -523,10 +549,10 @@ class SST2(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='sst2', split=split)
         self.name = 'sst2'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -543,15 +569,24 @@ class YelpPolarity(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='yelp_polarity', split=split)
         self.name = 'yelp_polarity'
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'test',
+            'test': 'test',
+        }
 
     def preprocess(self, x):
+        label_name = '<unk>' if x['label'] == - \
+            1 else self.label_names[x['label']]
+
         return {
             'inputs': f'sentence: {x["text"]}',
-            'targets': str(x['label']),
+            'targets': label_name,
         }
 
 
@@ -559,12 +594,12 @@ class QQP(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='qqp', split=split)
         self.name = 'qqp'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
             Metric(name='F1 with invalid',
-                   compute=metrics.f1_score_with_invalid, key='f1'),
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+                   compute=metrics.f1_score_with_invalid, key=['f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -576,22 +611,20 @@ class QQP(Dataset):
             'targets': label_name,
         }
 
-    def postprocess_for_metrics(self, labels, preds):
-        labels = [self.label_names.index(
-            label) if label in self.label_names else -1 for label in labels]
-        preds = [self.label_names.index(
-            pred) if pred in self.label_names else -1 for pred in preds]
-        return labels, preds
-
 
 class MNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='mnli', split=split)
         self.name = 'mnli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation_mismatched',
+            'text': 'test_mismatched',
+        }
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -608,10 +641,10 @@ class SNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='snli', split=split)
         self.name = 'snli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -628,11 +661,16 @@ class MultiNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='multi_nli', split=split)
         self.name = 'multi_nli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation_mismatched',
+            'test': 'validation_mismatched',
+        }
 
     def preprocess(self, x):
         label_name = '<unk>' if x['label'] == - \
@@ -648,11 +686,16 @@ class DocNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='saattrupdan/doc-nli', split=split)
         self.name = 'doc_nli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'val',
+            'test': 'test',
+        }
 
     def preprocess(self, x):
         label_name = '<unk>' if x['label'] == - \
@@ -668,10 +711,10 @@ class QNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='qnli', split=split)
         self.name = 'qnli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -688,10 +731,10 @@ class RTE(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='rte', split=split)
         self.name = 'rte'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -708,10 +751,11 @@ class WNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='glue', subset='wnli', split=split)
         self.name = 'wnli'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -728,10 +772,11 @@ class BoolQ(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='boolq', split=split)
         self.name = 'boolq'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -748,10 +793,11 @@ class SuperGLUERTE(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='rte', split=split)
         self.name = 'supeglue_rte'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -768,12 +814,13 @@ class CB(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='cb', split=split)
         self.name = 'cb'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
             Metric(name='F1 Multiclass', compute=metrics.mean_multiclass_f1(
-                num_classes=3), key='mean_3class_f1'),
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+                num_classes=3), key=['mean_3class_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -790,10 +837,11 @@ class COPA(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='copa', split=split)
         self.name = 'copa'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -810,10 +858,11 @@ class WIC(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='wic', split=split)
         self.name = 'wic'
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -830,9 +879,11 @@ class WinoGrande(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='winogrande', subset='winogrande_xl', split=split)
         self.name = 'winogrande'
+        self.label_names = self.dataset['train'].features['answer'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -843,15 +894,21 @@ class WinoGrande(Dataset):
         }
 
 
-class ANLI(Dataset):
+class ANLI(Dataset):  # Need to resolve version
     def __init__(self, split='train'):
         super().__init__(benchmark_name='anli', split=split)
-        self.label_names = self.dataset["train"].features["label"].names
+        self.label_names = self.dataset['train'].features['label'].names
         self.name = 'anli'
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
+        self.split_to_data_split = {
+            'train': 'train_r1',
+            'validation': 'dev_r1',
+            'test': 'test_r1',
+        }
 
     def preprocess(self, x):
         label_name = '<unk>' if x['label'] == - \
@@ -863,13 +920,14 @@ class ANLI(Dataset):
         }
 
 
-class GOEmotions(Dataset):
+class GOEmotions(Dataset):  # Need to resolve som problems with the labels
     def __init__(self, split='train'):
         super().__init__(benchmark_name='go_emotions', subset='simplified', split=split)
         self.name = 'go_emotions'
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def _get_label(self, vector):
@@ -879,7 +937,7 @@ class GOEmotions(Dataset):
     def preprocess(self, x):
         return {
             'inputs': f'emotion: {x["text"]}',
-            'targets': str(x['label']),
+            'targets': self._get_label(x['labels']),
         }
 
 
@@ -887,11 +945,21 @@ class Sentiment140(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='sentiment140', split=split)
         self.name = 'sentiment140'
-        self.label_names = self.dataset["train"].features["label"].names
+        # self.label_names = [
+        #     str(i)
+        #     for i in range(len(self.dataset["train"].features["sentiment"].names))
+        # ]
+        self.label_names = self.dataset['train'].features['sentiment'].names
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'test',
+            'test': 'test',
+        }
 
     def preprocess(self, x):
         label_name = '<unk>' if x['label'] == - \
@@ -909,7 +977,7 @@ class SearchQA(Dataset):
         self.name = 'search_qa'
 
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
 
     def preprocess(self, x):
@@ -927,7 +995,7 @@ class HotPotQA(Dataset):
         self.name = 'hotpot_qa'
 
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
 
     def preprocess(self, x):
@@ -953,8 +1021,13 @@ class NQ_Open(Dataset):
         self.name = 'nq_open'
 
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x):
         q = self._pad_punctuation(x['question'])
@@ -972,7 +1045,7 @@ class CosmosQA(Dataset):
         self.name = 'cosmos_qa'
 
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key='f1'),
+            Metric(name='Squad', compute=metrics.squad, key=['f1']),
         ]
 
     def preprocess(self, x):
@@ -988,9 +1061,11 @@ class HellaSwag(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='Rowan/hellaswag', split=split)
         self.name = 'hella_swag'
+        self.label_names = ['0', '1', '2', '3']
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
 
     def preprocess(self, x):
@@ -1008,7 +1083,7 @@ class CommonGen(Dataset):
         self.name = 'common_gen'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1'),
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1']),
         ]
 
     def preprocess(self, x):
@@ -1024,7 +1099,7 @@ class DART(Dataset):
         super().__init__(benchmark_name='gem', subset='dart', split=split)
         self.name = 'dart'
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1'),
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1']),
         ]
 
     def preprocess(self, x):
@@ -1054,7 +1129,7 @@ class WebNLG(Dataset):
         self.name = 'web_nlg'
 
         self.metrics = [
-            Metric(name='Bleu', compute=metrics.bleu, key='bleu')
+            Metric(name='Bleu', compute=metrics.bleu, key=['bleu'])
         ]
 
     def preprocess(self, x):
@@ -1072,8 +1147,13 @@ class WikiAuto(Dataset):
         self.name = 'wiki_auto'
 
         self.metrics = [
-            Metric(name='Bleu', compute=metrics.bleu, key='bleu')
+            Metric(name='Bleu', compute=metrics.bleu, key=['bleu'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'test_asset',
+        }
 
     def preprocess(self, x):
         return {
@@ -1088,7 +1168,7 @@ class XSUM(Dataset):
         self.name = 'xsum'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1121,7 +1201,7 @@ class WMT(Dataset):
         self.name = f'{source_language}_{target_language}'
 
         self.metrics = [
-            Metric(name='Bleu', compute=metrics.bleu, key='bleu')
+            Metric(name='Bleu', compute=metrics.bleu, key=['bleu'])
         ]
 
     def preprocess(self, x):
@@ -1167,7 +1247,7 @@ class AESLC(Dataset):
         self.name = 'aeslc'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1196,8 +1276,13 @@ class BILLSUM(Dataset):  # Need to check because the dataset have also title
         self.name = 'billsum'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'test',
+            'test': 'ca_test',
+        }
 
     def preprocess(self, x):
         """Convert a summarization dataset to a text2text pair.
@@ -1225,7 +1310,7 @@ class GIGAWORD(Dataset):
         self.name = 'gigaword'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1254,7 +1339,7 @@ class MultiNews(Dataset):
         self.name = 'multi_news'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1284,7 +1369,7 @@ class Newsroom(Dataset):  # Datasets also include title of the text
         self.name = 'newsroom'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def load_dataset(self):
@@ -1316,7 +1401,7 @@ class SamSum(Dataset):
         self.name = 'samsum'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1345,8 +1430,13 @@ class C4(Dataset):
         self.name = 'c4'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x):
         return {
@@ -1361,7 +1451,7 @@ class CNN(Dataset):
         self.name = 'cnn_dailymail'
 
         self.metrics = [
-            Metric(name='Rouge', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rouge', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1376,7 +1466,7 @@ class WikiLingua(Dataset):
         super().__init__(benchmark_name='gem', subset='wiki_lingua_english_en', split=split)
         self.name = 'wiki_lingua'
         self.metrics = [
-            Metric(name='Rogue', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rogue', compute=metrics.rouge, key=['rouge1'])
         ]
 
     def preprocess(self, x):
@@ -1397,9 +1487,9 @@ class CxC(Dataset):
 
         self.metrics = [
             Metric(name='Pearson coefficient',
-                   compute=metrics.pearson_corrcoef, key='pearson_corrcoef'),
+                   compute=metrics.pearson_corrcoef, key=['pearson_corrcoef']),
             Metric(name='Spearman coefficient',
-                   compute=metrics.spearman_corrcoef, key='spearman_corrcoef'),
+                   compute=metrics.spearman_corrcoef, key=['spearman_corrcoef']),
         ]
 
         self.load_dataset(path)
@@ -1448,8 +1538,13 @@ class NewsQA(Dataset):
         super().__init__(benchmark_name='legacy107/newsqa', split=split)
         self.name = 'newsqa'
         self.metrics = [
-            Metric(name='Rogue', compute=metrics.rouge, key='rouge1')
+            Metric(name='Rogue', compute=metrics.rouge, key=['rouge1'])
         ]
+        self.split_to_data_split = {
+            'train': 'train',
+            'validation': 'validation',
+            'test': 'validation',
+        }
 
     def preprocess(self, x, include_context=True):
         a = self._pad_punctuation(x['answers'][0])
@@ -1471,8 +1566,9 @@ class Race(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='race', subset='middle', split=split)
         self.name = 'race'
+        self.label_names = ['0', '1', '2', '3']
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy')
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
@@ -1496,7 +1592,7 @@ TASK_MAPPING = OrderedDict([
     ('sentiment_analysis', (GOEmotions, Sentiment140, SST2, YelpPolarity)),
     ('qa', (MRQA, Squad, NewsQA, TriviaQA, SearchQA, HotPotQA, NQ_Open)),
     ('commnonsense_reasoning', (CosmosQA, HellaSwag,
-     PIQA, SocialIQA, WinoGrande)),  # alfanli is missing
+     PIQA, SocialIQA, WinoGrande)),  # alf-anli is missing
     ('translation', (WMT)),  # three combination of languages
     ('summary', (AESLC, BILLSUM, CNN, WikiLingua,
      GIGAWORD, MultiNews, Newsroom, SamSum, XSUM)),

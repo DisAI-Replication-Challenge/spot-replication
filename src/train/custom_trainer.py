@@ -1,5 +1,4 @@
-import os
-import wandb
+import pandas as pd
 
 from train.hf_train_peft import get_config, train as hf_train_peft
 from train.train import train_with_sweeps
@@ -73,9 +72,6 @@ class CustomTrainer:
                 )
 
     def evaluate(self, dataset):
-        os.environ["WANDB_PROJECT"] = self.wandb_project
-        os.environ["WANDB_LOG_MODEL"] = self.wandb_log_model
-
         dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
@@ -85,5 +81,11 @@ class CustomTrainer:
             results = cpeft_inference(config, dataloader, metrics)
         else:
             results = inference(config, dataloader, metrics)
+
+        print(results)
+        model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}'
+        
+        df = pd.DataFrame(list(results.items()), columns=['Metric', 'Value'])
+        df.to_csv(f'{model_name}/valid.csv', index=False)
 
         print(results)

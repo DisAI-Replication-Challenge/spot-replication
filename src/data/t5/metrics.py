@@ -174,7 +174,11 @@ def squad(targets, predictions):
     Returns:
       dict with score_key: squad score across all targets and predictions
     """
-    targets = [[qa_utils.normalize_squad(t) for t in u] for u in targets]
+    if type(targets[0]) is list:
+        targets = [[qa_utils.normalize_squad(t) for t in u] for u in targets]
+    else:
+        targets = [[qa_utils.normalize_squad(u)] for u in targets]
+        
     predictions = [qa_utils.normalize_squad(p) for p in predictions]
     return qa_utils.qa_metrics(targets, predictions)
 
@@ -259,8 +263,13 @@ def f1_score_with_invalid(targets, predictions):
     # Get indices of invalid predictions
     invalid_idx_mask = np.logical_and(predictions != 0, predictions != 1)
     # For any prediction != 0 or 1, set it to the opposite of what the target is
-    predictions[invalid_idx_mask] = 1 - targets[invalid_idx_mask]
-    return {"f1": 100 * sklearn.metrics.f1_score(targets, predictions)}
+    try:
+        predictions[invalid_idx_mask] = 1 - targets[invalid_idx_mask]
+        return {"f1": 100 * sklearn.metrics.f1_score(targets, predictions)}
+    except Exception as e:
+        print(e)
+        print(targets, predictions),
+        return {"f1": 0.0}
 
 
 def multirc_f1_over_all_answers(targets, predictions):

@@ -3,7 +3,8 @@ optimizer: Adafactor
 batch_size: 32
 epochs: 3
 training_steps: 30000
-eval_steps: 10000
+eval_steps: 1000
+save_steps: 10000
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
@@ -13,3 +14,5 @@ prompt_init_text: "Answer True or False: "
 eval_strategy: steps
 gradient_steps: 100
 fp16: True
+padding: max_length
+truncation: True

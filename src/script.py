@@ -5,7 +5,7 @@ from train.custom_trainer import CustomTrainer
 from utils import get_wandb_config
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser('SPoT Repliation')
+    parser = argparse.ArgumentParser('SPoT Replication')
 
     parser.add_argument('--dataset', type=str, default='multirc',
                         help='Dataset to use for training')

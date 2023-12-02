@@ -66,14 +66,19 @@ def qa_metrics(targets, predictions):
     """Computes exact match and f1 QA scores, expecting pre-normalized text."""
     if len(targets) != len(predictions):
         raise ValueError("Number of targets and predictions must match.")
-    em = np.mean([
-        _metric_max_over_ground_truths(_exact_match_score, t, p)
-        for p, t in zip(predictions, targets)
-    ])
-    f1 = np.mean([
-        _metric_max_over_ground_truths(_f1_score, t, p)
-        for p, t in zip(predictions, targets)
-    ])
+    try:
+        em = np.mean([
+            _metric_max_over_ground_truths(_exact_match_score, t, p)
+            for p, t in zip(predictions, targets)
+        ])
+        f1 = np.mean([
+            _metric_max_over_ground_truths(_f1_score, t, p)
+            for p, t in zip(predictions, targets)
+        ])
+    except:
+        print(targets, predictions)
+        raise ValueError('max() args is an empty sequence!')
+    
     em *= 100
     f1 *= 100
     return {"em": em, "f1": f1}
