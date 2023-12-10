@@ -12,6 +12,8 @@ CONFIG_NAME = 'adapter_config.json'
 class PromptTuningInit(str, enum.Enum):
     TEXT = 'TEXT'
     RANDOM = 'RANDOM'
+    SAMPLED = 'SAMPLED'
+    CLASS = 'CLASS'
 
 
 class TaskType(str, enum.Enum):

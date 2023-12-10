@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from prompt_tuning import PromptTuningConfig, PromptTuningForSeq2SeqLM
 
 from data.preprocess import preprocess_data
+from train.sampling import all_mixing
 
 
 def load_model_tokenizer(model_name):
@@ -65,7 +66,18 @@ def inference(config, dataloader, metrics):
 
     model, tokenizer = load_model_tokenizer(model_name)
 
-    _, test_data, _ = preprocess_data(dataloader, tokenizer)
+    if 'mixture' in dataloader.name:
+        preprocessed_data = [
+            preprocess_data(dataloader, tokenizer, dataset)
+            for dataset in dataloader.datasets
+        ]
+        test_data = [data[1] for data in preprocessed_data]
+    else:
+        _, test_data, _ = preprocess_data(dataloader, tokenizer)
+        test_data = [test_data]
+
+    test_data = all_mixing(test_data)
+
     test_dataloader = DataLoader(
         test_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True)
 

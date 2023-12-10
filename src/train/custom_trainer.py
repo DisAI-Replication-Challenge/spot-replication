@@ -28,9 +28,12 @@ class CustomTrainer:
         self.wandb_log_model = wandb_log_model
         self.config_path = config_path
 
-    def train(self, dataset):
+    def train(self, dataset, mixture=False):
 
-        dataloader = DatasetOption.get(dataset)()
+        if mixture:
+            dataloader = DatasetOption.get('mixture')(dataset)
+        else:
+            dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
         if self.use_hf:
@@ -71,8 +74,11 @@ class CustomTrainer:
                     self.wandb_log_model
                 )
 
-    def evaluate(self, dataset):
-        dataloader = DatasetOption.get(dataset)()
+    def evaluate(self, dataset, mixture=False):
+        if mixture:
+            dataloader = DatasetOption.get('mixture')(dataset)
+        else:
+            dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
         config = get_config(self.config_path)
@@ -84,7 +90,7 @@ class CustomTrainer:
 
         print(results)
         model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}'
-        
+
         df = pd.DataFrame(list(results.items()), columns=['Metric', 'Value'])
         df.to_csv(f'{model_name}/valid.csv', index=False)
 

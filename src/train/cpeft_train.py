@@ -9,7 +9,7 @@ from tqdm import tqdm
 import yaml
 import wandb
 from prompt_tuning import PromptTuningConfig, PromptTuningInit, TaskType, get_prompt_tuning_model
-
+from train.sampling import proportional_mixing
 
 from data.preprocess import preprocess_data
 from train.utils import get_optimizer
@@ -62,7 +62,7 @@ def train_loop(config, dataloader, metrics):
 
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
-            init_type=PromptTuningInit.RANDOM,
+            init_type=PromptTuningInit.SAMPLED,
             num_virtual_tokens=100,
             tokenizer_name_or_path=config.model_name,
         )
@@ -71,13 +71,29 @@ def train_loop(config, dataloader, metrics):
         model = get_prompt_tuning_model(model, peft_config)
         wandb.watch(model, log="all", log_freq=100)
 
-        # training on train split and validation on valid split
-        train_data, valid_data, _ = preprocess_data(
-            dataloader, tokenizer, padding=config.padding, truncation=config.truncation, test_set=False)
+        if 'mixture' in dataloader.name:
+            preprocessed_data = [
+                preprocess_data(
+                    data, tokenizer, padding=config.padding, truncation=config.truncation, test_set=False)
+                for data in dataloader.datasets
+            ]
+            train_data = [data[0] for data in preprocessed_data]
+            valid_data = [data[1] for data in preprocessed_data]
+        else:
+            train_data, valid_data, _ = preprocess_data(
+                dataloader, tokenizer, padding=config.padding, truncation=config.truncation, test_set=False)
+            train_data = [train_data]
+            valid_data = [valid_data]
         # train test split => need to resolve based on the paper
         # loader = train_data.train_test_split(
         #     test_size=0.2, shuffle=True)
         # train_data, valid_data = loader['train'], loader['test']
+
+        print(dataloader.get_max_target_length(tokenizer, 128))
+        train_data = proportional_mixing(train_data)
+        print(len(train_data))
+        valid_data = proportional_mixing(valid_data)
+        print(len(valid_data))
 
         train_dataloader = DataLoader(
             train_data, shuffle=True, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True
@@ -106,6 +122,8 @@ def train_loop(config, dataloader, metrics):
         total_steps = 0
         total_loss = 0
         training_metrics, valid_metrics = reset_metrics(metrics)
+
+        print(torch.cuda.memory_summary())
 
         while True:
             model.train()
