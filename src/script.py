@@ -21,6 +21,8 @@ if __name__ == "__main__":
                         help='Wandb project name')
     parser.add_argument('--wandb_log_model', type=str, default='checkpoint',
                         help='Wandb log model')
+    parser.add_argument('--mixture', action='store_true',
+                        help='Use mixture of datasets')
     args = parser.parse_args()
 
     wandb_config = get_wandb_config("../config/wandb.conf")

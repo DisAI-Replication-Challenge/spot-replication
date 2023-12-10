@@ -8,13 +8,14 @@ def preprocess_data(
     dataloader,
     tokenizer,
     max_input_length=128,
-    max_target_length=128,
+    max_target_length=None,
     padding='max_length',
     truncation=True,
     test_set=False
 ):
-    max_target_length = dataloader.get_max_target_length(
-        tokenizer, max_target_length)
+    if max_target_length is None:
+        max_target_length = dataloader.get_max_target_length(
+            tokenizer, max_target_length)
 
     func = functools.partial(
         dataloader.tokenize,
@@ -25,7 +26,8 @@ def preprocess_data(
         truncation=truncation,
     )
 
-    remove_columns = dataloader.dataset['train'].column_names
+    key = dataloader.split_to_data_split['train']
+    remove_columns = dataloader.dataset[key].column_names
 
     if test_set:
         logging.info("Preprocessing test data")

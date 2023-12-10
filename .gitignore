@@ -177,3 +177,6 @@ wandb.conf
 results/*
 
 Test multirc.ipynb
+
+src/t5x/*
+embeddings/*
