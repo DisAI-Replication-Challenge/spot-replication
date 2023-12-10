@@ -89,6 +89,9 @@ class Dataset:
             pred) if pred in self.label_names else -1 for pred in preds]
         return labels, preds
 
+    def __len__(self):
+        return len(self.dataset[self.split_to_data_split[self.split]])
+
 
 class Record(Dataset):
     def __init__(self, split='train'):
@@ -686,7 +689,6 @@ class DocNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='saattrupdan/doc-nli', split=split)
         self.name = 'doc_nli'
-        self.label_names = self.dataset['train'].features['label'].names
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
@@ -698,9 +700,7 @@ class DocNLI(Dataset):
         }
 
     def preprocess(self, x):
-        label_name = '<unk>' if x['label'] == - \
-            1 else self.label_names[x['label']]
-
+        label_name = x['label']
         return {
             'inputs': f'premise: {x["premise"]} hypothesis: {x["hypothesis"]}',
             'targets': label_name,
@@ -897,7 +897,7 @@ class WinoGrande(Dataset):
 class ANLI(Dataset):  # Need to resolve version
     def __init__(self, split='train'):
         super().__init__(benchmark_name='anli', split=split)
-        self.label_names = self.dataset['train'].features['label'].names
+        self.label_names = self.dataset['train_r1'].features['label'].names
         self.name = 'anli'
 
         self.metrics = [
@@ -1591,8 +1591,9 @@ TASK_MAPPING = OrderedDict([
     ('semantic_similarity', (CxC, MRPC, QQP, STSB)),
     ('sentiment_analysis', (GOEmotions, Sentiment140, SST2, YelpPolarity)),
     ('qa', (MRQA, Squad, NewsQA, TriviaQA, SearchQA, HotPotQA, NQ_Open)),
+    ('mrqa', (Squad, NewsQA, TriviaQA, SearchQA, HotPotQA, NQ_Open)),
     ('commnonsense_reasoning', (CosmosQA, HellaSwag,
-     PIQA, SocialIQA, WinoGrande)),  # alf-anli is missing
+     PIQA, SocialIQA, WinoGrande)),  # alfa-nli is missing
     ('translation', (WMT)),  # three combination of languages
     ('summary', (AESLC, BILLSUM, CNN, WikiLingua,
      GIGAWORD, MultiNews, Newsroom, SamSum, XSUM)),
@@ -1602,33 +1603,23 @@ TASK_MAPPING = OrderedDict([
 
 
 class MixtureOfDatasets(Dataset):
-    def __init__(self, datasets, split='train'):
-        self.name = 'mixture'
-        self.datasets = []
-        for dataset in datasets:
-            self.datasets.append(DatasetOption.get(dataset)())
+    def __init__(self, task, split='train'):
+        self.name = f'mixture_{task}'
+        self.datasets = DatasetOption.get_task(task)
+        self.datasets = [dataset() for dataset in self.datasets]
 
         self.split = split
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy, key='accuracy'),
+            Metric(name='Accuracy', compute=metrics.accuracy,
+                   key=['accuracy']),
         ]
-        self.load_dataset()
 
-    def load_dataset(self):
-        self.dataset = []
-        for dataset in self.datasets:
-            dataset.load_dataset()
-            data = dataset.dataset[self.split]
-            self.dataset.extend(data)
-
-        self.dataset = DatasetDict({
-            'train': HFDataset.from_pandas(pd.DataFrame(self.dataset)),
-            'valid': HFDataset.from_pandas(pd.DataFrame([])),
-        })
-
-    def preprocess(self, x):
-        return x
+    def get_max_target_length(self, tokenizer, default_max_length):
+        return max([
+            dataset.get_max_target_length(tokenizer, default_max_length)
+            for dataset in self.datasets
+        ])
 
 
 # create mapping for above datasets
@@ -1691,6 +1682,7 @@ DATASET_MAPPING = OrderedDict([
     ('cxc', CxC),
     ('newsqa', NewsQA),
     ('race', Race),
+    ('mixture', MixtureOfDatasets),
 ])
 
 
@@ -1700,3 +1692,9 @@ class DatasetOption:
         if dataset in DATASET_MAPPING:
             return DATASET_MAPPING[dataset]
         raise ValueError(f'Invalid dataset: {dataset}')
+
+    @classmethod
+    def get_task(self, task):
+        if task in TASK_MAPPING:
+            return TASK_MAPPING[task]
+        raise ValueError(f'Invalid task: {task}')
