@@ -40,6 +40,6 @@ if __name__ == "__main__":
         args.wandb_log_model
     )
 
-    trainer.train(args.dataset)
+    trainer.train(args.dataset, args.mixture)
 
-    trainer.evaluate(args.dataset)
+    trainer.evaluate(args.dataset, args.mixture)

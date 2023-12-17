@@ -7,6 +7,8 @@ import re
 from datasets import DatasetDict
 from datasets import Dataset as HFDataset
 from collections import OrderedDict, namedtuple
+import collections
+from functools import partial
 
 import data.t5.metrics as metrics
 
@@ -97,6 +99,7 @@ class Record(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='record', split=split)
         self.name = 'record'
+        self.label_names = ['Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch']
         self.metrics = [
             Metric(name='Deduplicate metric',
                    compute=metrics.deduplicate_metric(metrics.squad),
@@ -104,80 +107,101 @@ class Record(Dataset):
                    )
         ]
 
-    def preprocess(self):
-        """Convert ReCoRD examples to text2text examples.
-
-        For example, a typical example from ReCoRD might look like
-        {
-            'passsage': 'This is the passage.',
-            'query': 'A @placeholder is a bird.',
-            'entities': ['penguin', 'potato', 'pigeon'],
-            'answers': ['penguin', 'pigeon'],
-        }
-        which this preprocessor would turn into the following two examples:
-        {
-            'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
-                    'potato, pigeon passage: This is the passage.',
-            'targets': 'penguin',
-        }
-        and
-        {
-            'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
-                    'potato, pigeon passage: This is the passage.',
-            'targets': 'potato',
-        }
-
-        Args:
-        dataset: a Dataset to process.
-
-        Returns:
-        a Dataset
-        """
-        def process_answers(x):
-            """Helper fn to get one example per answer."""
-            ex = x.copy()
-            num_answers = len(ex['answers'])
-
-            def duplicate_along_first_dim(t):
-                n_duplicates = max(num_answers, 1)
-                return [t] * n_duplicates
-
-            for k, v in x.items():
-                if k != 'idx':
-                    ex[k] = duplicate_along_first_dim(v)
-            ex['targets'] = x['answers'] if num_answers > 0 else ['<unk>']
-            ex['idx'] = {
-                'passage': duplicate_along_first_dim(x['idx']['passage']),
-                'query': duplicate_along_first_dim(x['idx']['query']),
-            }
-
-            return ex
-
-        def my_fn(x):
-            """Converts the processed example to text2text strings."""
-            passage = x['passage']
+    def preprocess(self, batch):
+        new_batch = collections.defaultdict(list)
+        keys = batch.keys()
+        for values in zip(*batch.values()):
+            ex = {k: v for k, v in zip(keys, values)}
+            # updates the passage.
+            passage = ex['passage']
             passage = re.sub(
                 r'(\.|\?|\!|\"|\')\n@highlight\n', r'\1 ', passage)
             passage = re.sub(r'\n@highlight\n', '. ', passage)
+            inputs = f"record query: {ex['query']} entities: {', '.join(ex['entities'])} passage: {passage}"
+            # duplicates the samples based on  number of answers.
+            num_answers = len(ex["answers"])
+            num_duplicates = np.maximum(1, num_answers)
+            new_batch["inputs"].extend([inputs] * num_duplicates)
+            new_batch["targets"].extend(
+                ex["answers"] if num_answers > 0 else ["<unk>"])
+            # new_batch["task"].extend([self.name] * num_duplicates)
 
-            final_str = f'record query: {x["query"]} entities: {", ".join(x["entities"])} passage: {passage}'
-            ex = {}
+        return new_batch
 
-            # Store the data index in the returned example (used by eval)
-            ex['idx/passage'] = x['idx']['passage']
-            ex['idx/query'] = x['idx']['query']
+    # def preprocess(self, example):
+    #     """Convert ReCoRD examples to text2text examples.
 
-            ex['inputs'] = final_str
-            # Note that "answers" has been converted to a single string by the
-            # process_answers function.
-            ex['targets'] = x['targets']
-            # Pass-through full list of answers for eval
-            ex['answers'] = x['answers']
-            return ex
+    #     For example, a typical example from ReCoRD might look like
+    #     {
+    #         'passsage': 'This is the passage.',
+    #         'query': 'A @placeholder is a bird.',
+    #         'entities': ['penguin', 'potato', 'pigeon'],
+    #         'answers': ['penguin', 'pigeon'],
+    #     }
+    #     which this preprocessor would turn into the following two examples:
+    #     {
+    #         'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
+    #                 'potato, pigeon passage: This is the passage.',
+    #         'targets': 'penguin',
+    #     }
+    #     and
+    #     {
+    #         'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
+    #                 'potato, pigeon passage: This is the passage.',
+    #         'targets': 'potato',
+    #     }
 
-        dataset = self.dataset.map(process_answers)
-        dataset = dataset.unbatch()
-        return dataset.map(my_fn)
+    #     Args:
+    #     dataset: a Dataset to process.
+
+    #     Returns:
+    #     a Dataset
+    #     """
+    #     def process_answers(x):
+    #         """Helper fn to get one example per answer."""
+    #         ex = x.copy()
+    #         num_answers = len(ex['answers'])
+
+    #         def duplicate_along_first_dim(t):
+    #             n_duplicates = max(num_answers, 1)
+    #             return [t] * n_duplicates
+
+    #         for k, v in x.items():
+    #             if k != 'idx':
+    #                 ex[k] = duplicate_along_first_dim(v)
+    #         ex['targets'] = x['answers'] if num_answers > 0 else ['<unk>']
+    #         ex['idx'] = {
+    #             'passage': duplicate_along_first_dim(x['idx']['passage']),
+    #             'query': duplicate_along_first_dim(x['idx']['query']),
+    #         }
+
+    #         return ex
+
+    #     def my_fn(x):
+    #         """Converts the processed example to text2text strings."""
+    #         passage = x['passage']
+    #         passage = re.sub(
+    #             r'(\.|\?|\!|\"|\')\n@highlight\n', r'\1 ', passage)
+    #         passage = re.sub(r'\n@highlight\n', '. ', passage)
+
+    #         final_str = f'record query: {x["query"]} entities: {", ".join(x["entities"])} passage: {passage}'
+    #         ex = {}
+
+    #         # Store the data index in the returned example (used by eval)
+    #         ex['idx/passage'] = x['idx']['passage']
+    #         ex['idx/query'] = x['idx']['query']
+
+    #         ex['inputs'] = final_str
+    #         # Note that "answers" has been converted to a single string by the
+    #         # process_answers function.
+    #         ex['targets'] = x['targets']
+    #         # Pass-through full list of answers for eval
+    #         ex['answers'] = x['answers']
+    #         return ex
+
+    #     dataset = self.dataset.map(process_answers)
+    #     dataset = dataset.unbatch()
+    #     return dataset.map(my_fn)
 
 
 class STSB(Dataset):
@@ -190,7 +214,7 @@ class STSB(Dataset):
         ]
         self.metrics = [
             Metric(name='Pearson coefficient',
-                   calculate=metrics.pearson_corrcoef,
+                   compute=metrics.pearson_corrcoef,
                    key=['pearson_corrcoef']),
             Metric(name='Spearman coefficient',
                    compute=metrics.spearman_corrcoef,
@@ -224,7 +248,7 @@ class STSB(Dataset):
         """
         text = f'stsb sentence1: {x["sentence1"]} sentence2: {x["sentence1"]}'
         label_string = f'{np.round((x["label"] * 5) / 5, decimals=1)}'
-        return {'inputs': text, 'targets': label_string, 'idx': x['idx']}
+        return {'inputs': text, 'targets': label_string}
 
 
 class WSC(Dataset):
@@ -236,7 +260,7 @@ class WSC(Dataset):
             Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
-    def _mark_span(text, span_str, span_idx, mark):
+    def _mark_span(self, text, span_str, span_idx, mark):
         pattern_tmpl = r'^((?:\S+\s){N})(W)'
         pattern = re.sub('N', str(span_idx), pattern_tmpl)
         pattern = re.sub('W', span_str, pattern)
@@ -279,7 +303,7 @@ class WSC(Dataset):
         label_name = '<unk>' if x['label'] == - \
             1 else self.label_names[x['label']]
 
-        return {'inputs': final_str, 'targets': label_name, 'idx': x['idx']}
+        return {'inputs': final_str, 'targets': label_name}
 
 
 class MultiRC(Dataset):
@@ -304,9 +328,6 @@ class MultiRC(Dataset):
 
     def preprocess(self, x):
         ex = {}
-        ex['idx/paragraph'] = x['idx']['paragraph']
-        ex['idx/question'] = x['idx']['question']
-        ex['idx/answer'] = x['idx']['answer']
 
         label_name = '<unk>' if x['label'] == - \
             1 else self.label_names[x['label']]
@@ -428,7 +449,7 @@ class MRQA(Dataset):
 
     def preprocess(self, x, task_name=None):
         new_ex = {}
-        new_ex['idx'] = x['qid']
+        # new_ex['idx'] = x['qid']
         new_ex['question'] = self._pad_punctuation(x['question'])
         new_ex['context'] = self._pad_punctuation(x['context'])
         new_ex['answer'] = self._pad_punctuation(x['answers'][0])
@@ -689,6 +710,7 @@ class DocNLI(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='saattrupdan/doc-nli', split=split)
         self.name = 'doc_nli'
+        self.label_names = ['non_entailment', 'entailment']
 
         self.metrics = [
             Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
@@ -1530,7 +1552,7 @@ class CxC(Dataset):
         """
         text = f'sentence1: {x["sentence1"]} sentence2: {x["sentence1"]}'
         label_string = f'{np.round((x["score"] * 5) / 5, decimals=1)}'
-        return {'inputs': text, 'targets': label_string, 'idx': x['idx']}
+        return {'inputs': text, 'targets': label_string}
 
 
 class NewsQA(Dataset):
@@ -1611,11 +1633,15 @@ class MixtureOfDatasets(Dataset):
         self.split = split
 
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
+            # Metric(name='Accuracy', compute=metrics.accuracy,
+            #        key=['accuracy']),
         ]
 
     def get_max_target_length(self, tokenizer, default_max_length):
+        print(
+            [dataset.get_max_target_length(tokenizer, default_max_length)
+             for dataset in self.datasets]
+        )
         return max([
             dataset.get_max_target_length(tokenizer, default_max_length)
             for dataset in self.datasets

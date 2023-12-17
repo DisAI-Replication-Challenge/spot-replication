@@ -3,13 +3,14 @@ from accelerate import Accelerator
 import os
 import torch
 from torch.utils.data import DataLoader
+from prompt_tuning.prompt_tuning import PromptTuningForSeq2SeqLM
 from train.hf_train_peft import get_config
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, default_data_collator, get_linear_schedule_with_warmup
 from tqdm import tqdm
 import yaml
 import wandb
 from prompt_tuning import PromptTuningConfig, PromptTuningInit, TaskType, get_prompt_tuning_model
-from train.sampling import proportional_mixing
+from train.sampling import all_mixing, proportional_mixing
 
 from data.preprocess import preprocess_data
 from train.utils import get_optimizer
@@ -18,12 +19,18 @@ from train.utils import get_optimizer
 
 
 def get_model_tokenizer(model_name):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    if './' in model_name or '../' in model_name:
+        config = PromptTuningConfig.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            config.tokenizer_name_or_path)
+        model = PromptTuningForSeq2SeqLM.from_pretrained(model, model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
-
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
     return model, tokenizer
 
@@ -68,20 +75,21 @@ def train_loop(config, dataloader, metrics):
         )
 
         model, tokenizer = get_model_tokenizer(config.model_name)
-        model = get_prompt_tuning_model(model, peft_config)
+        if './' not in config.model_name and '../' not in config.model_name:
+            model = get_prompt_tuning_model(model, peft_config)
         wandb.watch(model, log="all", log_freq=100)
 
         if 'mixture' in dataloader.name:
             preprocessed_data = [
                 preprocess_data(
-                    data, tokenizer, padding=config.padding, truncation=config.truncation, test_set=False)
+                    data, tokenizer, padding=config.padding, truncation=config.truncation, max_target_length=dataloader.get_max_target_length(tokenizer, 128), test_set=False)
                 for data in dataloader.datasets
             ]
             train_data = [data[0] for data in preprocessed_data]
             valid_data = [data[1] for data in preprocessed_data]
         else:
             train_data, valid_data, _ = preprocess_data(
-                dataloader, tokenizer, padding=config.padding, truncation=config.truncation, test_set=False)
+                dataloader, tokenizer, padding=config.padding, truncation=config.truncation, max_target_length=dataloader.get_max_target_length(tokenizer, 128), test_set=False)
             train_data = [train_data]
             valid_data = [valid_data]
         # train test split => need to resolve based on the paper
@@ -90,10 +98,16 @@ def train_loop(config, dataloader, metrics):
         # train_data, valid_data = loader['train'], loader['test']
 
         print(dataloader.get_max_target_length(tokenizer, 128))
-        train_data = proportional_mixing(train_data)
-        print(len(train_data))
-        valid_data = proportional_mixing(valid_data)
-        print(len(valid_data))
+        if './' not in config.model_name and '../' not in config.model_name:
+            train_data = proportional_mixing(train_data)
+            print(len(train_data))
+            valid_data = proportional_mixing(valid_data)
+            print(len(valid_data))
+        else:
+            train_data = all_mixing(train_data)
+            print(len(train_data))
+            valid_data = all_mixing(valid_data)
+            print(len(valid_data))
 
         train_dataloader = DataLoader(
             train_data, shuffle=True, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True

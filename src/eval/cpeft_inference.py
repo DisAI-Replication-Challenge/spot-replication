@@ -68,7 +68,8 @@ def inference(config, dataloader, metrics):
 
     if 'mixture' in dataloader.name:
         preprocessed_data = [
-            preprocess_data(dataloader, tokenizer, dataset)
+            preprocess_data(
+                dataset, tokenizer, padding=config.padding, truncation=config.truncation)
             for dataset in dataloader.datasets
         ]
         test_data = [data[1] for data in preprocessed_data]

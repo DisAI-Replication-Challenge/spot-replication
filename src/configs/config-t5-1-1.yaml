@@ -3,13 +3,13 @@ optimizer: Adafactor
 batch_size: 32
 epochs: 3
 training_steps: 262144
-eval_steps: 500
-save_steps: 500
+eval_steps: 10000
+save_steps: 10000
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
-model_name: ../results/t5-base-mnli/best_model
-output_path: ../results/mnli
+model_name: liangtaiwan/t5-v1_1-lm100k-base
+output_path: ../results
 prompt_init_text: "Answer True or False: "
 eval_strategy: steps
 gradient_steps: 100
