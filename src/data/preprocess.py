@@ -68,6 +68,4 @@ def preprocess_data(
         #     valid_data_tokenized = valid_data.map(
         #         func, batched=True, remove_columns=remove_columns)
 
-        print(train_data_tokenized)
-        print(valid_data_tokenized)
         return train_data_tokenized, valid_data_tokenized, None

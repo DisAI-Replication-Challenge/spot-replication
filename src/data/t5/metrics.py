@@ -178,7 +178,7 @@ def squad(targets, predictions):
         targets = [[qa_utils.normalize_squad(t) for t in u] for u in targets]
     else:
         targets = [[qa_utils.normalize_squad(u)] for u in targets]
-        
+
     predictions = [qa_utils.normalize_squad(p) for p in predictions]
     return qa_utils.qa_metrics(targets, predictions)
 
@@ -222,12 +222,18 @@ def sequence_accuracy(targets, predictions):
 
 def pearson_corrcoef(targets, predictions):
     """Pearson correlation coefficient."""
+    # convert targets and predictions arrays to float
+    targets = np.asarray(targets, dtype=np.float16)
+    predictions = np.asarray(predictions, dtype=np.float16)
     return {"pearson_corrcoef":
             100 * scipy.stats.pearsonr(targets, predictions)[0]}
 
 
 def spearman_corrcoef(targets, predictions):
     """Spearman correlation coefficient."""
+    # convert targets and predictions to float
+    targets = np.asarray(targets, dtype=np.float16)
+    predictions = np.asarray(predictions, dtype=np.float16)
     return {"spearman_corrcoef":
             100 * scipy.stats.spearmanr(targets, predictions)[0]}
 
@@ -288,7 +294,7 @@ def multirc_f1_over_all_answers(targets, predictions):
       F1 score over values, where any prediction != 0 or 1 is counted as wrong.
     """
     return f1_score_with_invalid(
-        [t for t in targets], [p for p in predictions]
+        [t["value"] for t in targets], [p["value"] for p in predictions]
     )
 
 

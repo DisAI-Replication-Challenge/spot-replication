@@ -99,7 +99,8 @@ class Record(Dataset):
     def __init__(self, split='train'):
         super().__init__(benchmark_name='super_glue', subset='record', split=split)
         self.name = 'record'
-        self.label_names = ['Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch']
+        self.label_names = [
+            'Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch']
         self.metrics = [
             Metric(name='Deduplicate metric',
                    compute=metrics.deduplicate_metric(metrics.squad),
@@ -125,8 +126,23 @@ class Record(Dataset):
             new_batch["targets"].extend(
                 ex["answers"] if num_answers > 0 else ["<unk>"])
             # new_batch["task"].extend([self.name] * num_duplicates)
+            new_batch["group"].extend(
+                [ex["idx"]["query"]] * num_duplicates)
 
         return new_batch
+
+    def postprocess_for_metrics(self, labels, preds, item):
+        """Postprocesses labels and predictions for metrics."""
+        # Group labels and predictions by paragraph.
+        preds = [
+            {'group': info['group'], 'value': pred}
+            for info, pred in zip(item['group'], preds)
+        ]
+        labels = [
+            {'group': info['group'], 'value': label}
+            for info, label in zip(item['group'], labels)
+        ]
+        return labels, preds
 
     # def preprocess(self, example):
     #     """Convert ReCoRD examples to text2text examples.
@@ -246,7 +262,7 @@ class STSB(Dataset):
         Returns:
         A preprocessed example.
         """
-        text = f'stsb sentence1: {x["sentence1"]} sentence2: {x["sentence1"]}'
+        text = f'stsb sentence1: {x["sentence1"]} sentence2: {x["sentence2"]}'
         label_string = f'{np.round((x["label"] * 5) / 5, decimals=1)}'
         return {'inputs': text, 'targets': label_string}
 
@@ -333,7 +349,26 @@ class MultiRC(Dataset):
             1 else self.label_names[x['label']]
         ex['targets'] = label_name
         ex['inputs'] = f'question: {self._remove_markup(x["question"])} answer: {self._remove_markup(x["answer"])} paragraph: {self._remove_markup(x["paragraph"])}'
+        ex['group'] = x['idx']['paragraph']
         return ex
+
+    def postprocess_for_metrics(self, labels, preds, item):
+        """Postprocesses labels and predictions for metrics."""
+        # Group labels and predictions by paragraph.
+        labels = [self.label_names.index(
+            label) if label in self.label_names else -1 for label in labels]
+        preds = [self.label_names.index(
+            pred) if pred in self.label_names else -1 for pred in preds]
+
+        preds = [
+            {'group': info, 'value': pred}
+            for info, pred in zip(item['group'], preds)
+        ]
+        labels = [
+            {'group': info, 'value': label}
+            for info, label in zip(item['group'], labels)
+        ]
+        return labels, preds
 
 
 class TriviaQA(Dataset):
@@ -409,7 +444,7 @@ class Squad(Dataset):
         super().__init__(benchmark_name='squad', split=split)
         self.name = 'squad'
         self.metrics = [
-            Metric(name='Squad', compute=metrics.squad, key=['f1']),
+            Metric(name='Squad', compute=metrics.squad, key=['f1', 'em']),
         ]
         self.split_to_data_split = {
             'train': 'train',

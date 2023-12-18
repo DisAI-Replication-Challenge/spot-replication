@@ -30,6 +30,7 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
         for key in metric.key:
             test_metrics[f"test_{key}"] = 0.0
 
+    model.eval()
     with torch.no_grad():
         for batch in tqdm(data):
             batch = {k: v.to(device) for k, v in batch.items()}
