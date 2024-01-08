@@ -9,10 +9,10 @@ save_steps: 500
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
-model_name: ../results/t5-base-sst2/best_model
-# model_name: t5-base
-# output_path: ../results
-output_path: ../results/sst2
+# model_name: ../results/t5-base-qqp/best_model
+model_name: t5-base
+output_path: ../results
+# output_path: ../results/qqp
 prompt_init_text: "Answer True or False: "
 eval_strategy: steps
 gradient_steps: 100
