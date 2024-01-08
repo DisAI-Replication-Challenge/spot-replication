@@ -2,7 +2,7 @@ import argparse
 import os
 
 from train.custom_trainer import CustomTrainer
-from utils import get_wandb_config
+from utils import get_wandb_config, get_huggingface_config
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('SPoT Replication')
@@ -26,10 +26,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     wandb_config = get_wandb_config("../config/wandb.conf")
+    huggingface_config = get_huggingface_config("../config/huggingface.conf")
 
     os.environ["WANDB_API_KEY"] = wandb_config.WANDB_API_KEY
     os.environ["WANDB_USERNAME"] = wandb_config.WANDB_USERNAME
     os.environ["WANDB_DIR"] = wandb_config.WANDB_DIR
+    os.environ['HF_API_KEY'] = huggingface_config.HF_API_KEY
 
     trainer = CustomTrainer(
         args.use_sweep,

@@ -3,8 +3,8 @@ optimizer: Adafactor
 batch_size: 32
 epochs: 3
 training_steps: 100000
-eval_steps: 5000
-save_steps: 5000
+eval_steps: 500
+save_steps: 500
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
@@ -18,5 +18,5 @@ gradient_steps: 100
 fp16: True
 padding: max_length
 truncation: True
-init_type: sampled
+init_type: text
 num_virtual_tokens: 100
