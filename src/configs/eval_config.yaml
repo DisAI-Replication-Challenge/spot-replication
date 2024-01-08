@@ -1,5 +1,5 @@
 batch_size: 32
-model_name: ../results/squad/best_model-mixture_super_glue/best_model
+model_name: ../results/t5v1-1-nli/best_model-mixture_glue/best_model
 output_path: ../results
 padding: max_length
 truncation: True

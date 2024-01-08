@@ -8,7 +8,9 @@ import pandas as pd
 
 
 def inference(model_name, config, dataloader, eval_name='super_glue'):
-    final_path = f'{config.output_path}/eval/{config.model_name.replace("/", "_")}-{eval_name}'
+    m_name = ''.join(model_name.split(
+        '/')[2:3]).replace('/', '_').replace('best_model-', '')
+    final_path = f'{config.output_path}/eval/{m_name}-{eval_name}'
     os.makedirs(f'{config.output_path}', exist_ok=True)
     os.makedirs(f'{config.output_path}/eval', exist_ok=True)
     os.makedirs(f'{final_path}', exist_ok=True)
@@ -52,7 +54,7 @@ def inference(model_name, config, dataloader, eval_name='super_glue'):
                 )
 
                 for metric in metrics:
-                    if metric.name in ["F1 with invalid"]:
+                    if metric.name in ["F1 with invalid"] or current_dataloader.name == 'stsb':
                         decoded_labels, decoded_preds = current_dataloader.postprocess_for_metrics(
                             decoded_labels, decoded_preds)
                     elif metric.name in ['Match all', 'Deduplicate metric', "F1 over all answers",]:
