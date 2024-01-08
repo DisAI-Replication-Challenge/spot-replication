@@ -8,91 +8,11 @@ from datasets import DatasetDict
 from datasets import Dataset as HFDataset
 from collections import OrderedDict, namedtuple
 import collections
-from functools import partial
 
-import data.t5.metrics as metrics
+import data.metrics as metrics
+from data.dataset import Dataset
 
 Metric = namedtuple('Metric', ['name', 'compute', 'key'])
-
-
-class Dataset:
-    def __init__(self, benchmark_name, subset=None, split=None):
-        self.benchmark_name = benchmark_name
-        self.subset = subset
-        self.split = split
-        self.label_names = None
-        self.load_dataset()
-        self.split_to_data_split = {
-            'train': 'train',
-            'validation': 'validation',
-            'test': 'test',
-        }
-
-    def load_dataset(self):
-        if self.subset is None:
-            self.dataset = hfload_dataset(
-                self.benchmark_name)  # , self.split, cache_dir='../../../data/.cache')
-        else:
-            self.dataset = hfload_dataset(
-                self.benchmark_name, self.subset)  # , self.split, cache_dir='../../../data/.cache')
-
-    def _pad_punctuation(self, text):
-        """Adds spaces around punctuation."""
-        text = regex.sub(r'([^_\s\p{N}\p{L}\p{M}])', r' \1 ', str(text))
-        # Collapse consecutive whitespace into one space.
-        text = regex.sub(r'\s+', ' ', text)
-        return text
-
-    def preprocess(self, x):
-        return NotImplementedError
-
-    def get_max_target_length(self, tokenizer, default_max_length):
-        if self.label_names is not None:
-            return max([len(tokenizer.encode(label)) for label in self.label_names])
-        return default_max_length
-
-    def postprocess(self, labels, preds, tokenizer, ignore_pad_token_for_loss=True):
-
-        if ignore_pad_token_for_loss:
-            labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-            preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-
-        decoded_labels = tokenizer.batch_decode(
-            labels, skip_special_tokens=True)
-        decoded_preds = [text.strip() for text in decoded_preds]
-        decoded_labels = [text.strip() for text in decoded_labels]
-
-        return decoded_labels, decoded_preds
-
-    def tokenize(self, example, tokenizer, max_input_length, max_target_length, padding='max_length', truncation=True):
-        inputs = example["inputs"]
-        targets = example["targets"]
-
-        model_inputs = tokenizer(inputs, max_length=max_input_length,
-                                 padding=padding, truncation=truncation, return_tensors="pt")
-
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(targets, max_length=max_target_length,
-                               padding=padding, truncation=truncation, return_tensors="pt")
-            labels = labels["input_ids"]
-            labels[labels == tokenizer.pad_token_id] = -100
-            model_inputs["labels"] = labels
-
-        return model_inputs
-
-    def postprocess_for_metrics(self, labels, preds):
-        # print(labels)
-        # print(preds)
-        labels = [self.label_names.index(
-            label) if label in self.label_names else -1 for label in labels]
-        preds = [self.label_names.index(
-            pred) if pred in self.label_names else -1 for pred in preds]
-        return labels, preds
-
-    def __len__(self):
-        return len(self.dataset[self.split_to_data_split[self.split]])
 
 
 class Record(Dataset):
@@ -125,7 +45,9 @@ class Record(Dataset):
             new_batch["inputs"].extend([inputs] * num_duplicates)
             new_batch["targets"].extend(
                 ex["answers"] if num_answers > 0 else ["<unk>"])
-            # new_batch["task"].extend([self.name] * num_duplicates)
+
+            # if self.split != 'train':
+            new_batch["task"].extend([self.name] * num_duplicates)
             new_batch["group"].extend(
                 [ex["idx"]["query"]] * num_duplicates)
 
@@ -135,89 +57,14 @@ class Record(Dataset):
         """Postprocesses labels and predictions for metrics."""
         # Group labels and predictions by paragraph.
         preds = [
-            {'group': info['group'], 'value': pred}
+            {'group': info, 'value': pred}
             for info, pred in zip(item['group'], preds)
         ]
         labels = [
-            {'group': info['group'], 'value': label}
+            {'group': info, 'value': label}
             for info, label in zip(item['group'], labels)
         ]
         return labels, preds
-
-    # def preprocess(self, example):
-    #     """Convert ReCoRD examples to text2text examples.
-
-    #     For example, a typical example from ReCoRD might look like
-    #     {
-    #         'passsage': 'This is the passage.',
-    #         'query': 'A @placeholder is a bird.',
-    #         'entities': ['penguin', 'potato', 'pigeon'],
-    #         'answers': ['penguin', 'pigeon'],
-    #     }
-    #     which this preprocessor would turn into the following two examples:
-    #     {
-    #         'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
-    #                 'potato, pigeon passage: This is the passage.',
-    #         'targets': 'penguin',
-    #     }
-    #     and
-    #     {
-    #         'inputs': 'record query: A @placeholder is a bird. entities: penguin, '
-    #                 'potato, pigeon passage: This is the passage.',
-    #         'targets': 'potato',
-    #     }
-
-    #     Args:
-    #     dataset: a Dataset to process.
-
-    #     Returns:
-    #     a Dataset
-    #     """
-    #     def process_answers(x):
-    #         """Helper fn to get one example per answer."""
-    #         ex = x.copy()
-    #         num_answers = len(ex['answers'])
-
-    #         def duplicate_along_first_dim(t):
-    #             n_duplicates = max(num_answers, 1)
-    #             return [t] * n_duplicates
-
-    #         for k, v in x.items():
-    #             if k != 'idx':
-    #                 ex[k] = duplicate_along_first_dim(v)
-    #         ex['targets'] = x['answers'] if num_answers > 0 else ['<unk>']
-    #         ex['idx'] = {
-    #             'passage': duplicate_along_first_dim(x['idx']['passage']),
-    #             'query': duplicate_along_first_dim(x['idx']['query']),
-    #         }
-
-    #         return ex
-
-    #     def my_fn(x):
-    #         """Converts the processed example to text2text strings."""
-    #         passage = x['passage']
-    #         passage = re.sub(
-    #             r'(\.|\?|\!|\"|\')\n@highlight\n', r'\1 ', passage)
-    #         passage = re.sub(r'\n@highlight\n', '. ', passage)
-
-    #         final_str = f'record query: {x["query"]} entities: {", ".join(x["entities"])} passage: {passage}'
-    #         ex = {}
-
-    #         # Store the data index in the returned example (used by eval)
-    #         ex['idx/passage'] = x['idx']['passage']
-    #         ex['idx/query'] = x['idx']['query']
-
-    #         ex['inputs'] = final_str
-    #         # Note that "answers" has been converted to a single string by the
-    #         # process_answers function.
-    #         ex['targets'] = x['targets']
-    #         # Pass-through full list of answers for eval
-    #         ex['answers'] = x['answers']
-    #         return ex
-
-    #     dataset = self.dataset.map(process_answers)
-    #     dataset = dataset.unbatch()
-    #     return dataset.map(my_fn)
 
 
 class STSB(Dataset):
@@ -265,6 +112,13 @@ class STSB(Dataset):
         text = f'stsb sentence1: {x["sentence1"]} sentence2: {x["sentence2"]}'
         label_string = f'{np.round((x["label"] * 5) / 5, decimals=1)}'
         return {'inputs': text, 'targets': label_string}
+
+    def postprocess_for_metrics(self, labels, preds):
+        labels = [self.label_names.index(
+            label) if label in self.label_names else 0 for label in labels]
+        preds = [self.label_names.index(
+            pred) if pred in self.label_names else 0 for pred in preds]
+        return labels, preds
 
 
 class WSC(Dataset):
@@ -349,6 +203,7 @@ class MultiRC(Dataset):
             1 else self.label_names[x['label']]
         ex['targets'] = label_name
         ex['inputs'] = f'question: {self._remove_markup(x["question"])} answer: {self._remove_markup(x["answer"])} paragraph: {self._remove_markup(x["paragraph"])}'
+        # if self.split != 'train':
         ex['group'] = x['idx']['paragraph']
         return ex
 
@@ -1663,7 +1518,7 @@ class MixtureOfDatasets(Dataset):
     def __init__(self, task, split='train'):
         self.name = f'mixture_{task}'
         self.datasets = DatasetOption.get_task(task)
-        self.datasets = [dataset() for dataset in self.datasets]
+        self.datasets = [dataset(split=split) for dataset in self.datasets]
 
         self.split = split
 

@@ -78,7 +78,7 @@ def qa_metrics(targets, predictions):
     except:
         print(targets, predictions)
         raise ValueError('max() args is an empty sequence!')
-    
+
     em *= 100
     f1 *= 100
     return {"em": em, "f1": f1}

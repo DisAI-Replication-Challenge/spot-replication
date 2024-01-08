@@ -7,7 +7,7 @@ import numpy as np
 import collections
 import re
 
-import data.t5.qa_utils as qa_utils
+import data.qa_utils as qa_utils
 
 
 def bleu(targets, predictions, tokenizer="intl"):
