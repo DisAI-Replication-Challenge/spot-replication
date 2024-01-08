@@ -5,10 +5,19 @@ from train.train import train_with_sweeps
 from train.train import train as custom_train
 from train.cpeft_train import train as cpeft_train
 from train.cpeft_train import train_with_sweeps as cpeft_train_with_sweeps
-from data.t5.task import DatasetOption
+from data.t5.task import DatasetOption as T5DatasetOption
+from data.mt5.task import DatasetOption as MT5DatasetOption
 from eval.hf_inference_peft import inference
 from eval.cpeft_inference import inference as cpeft_inference
 from collections import namedtuple
+import yaml
+
+
+def get_dataset_option(model_name):
+    if 'mt5' in model_name:
+        return MT5DatasetOption
+    else:
+        return T5DatasetOption
 
 
 class CustomTrainer:
@@ -30,10 +39,18 @@ class CustomTrainer:
 
     def train(self, dataset, mixture=False):
 
-        if mixture:
-            dataloader = DatasetOption.get('mixture')(dataset)
+        config = get_config(self.config_path)
+        config = namedtuple('config', config.keys())(*config.values())
+
+        DatasetOption = get_dataset_option(config.model_name)
+
+        if 'mt5' in config.model_name:
+            dataloader = DatasetOption.get(dataset)(language=config.language)
         else:
-            dataloader = DatasetOption.get(dataset)()
+            if mixture:
+                dataloader = DatasetOption.get('mixture')(dataset)
+            else:
+                dataloader = DatasetOption.get(dataset)()
         metrics = dataloader.metrics
 
         if self.use_hf:
@@ -75,14 +92,20 @@ class CustomTrainer:
                 )
 
     def evaluate(self, dataset, mixture=False):
-        if mixture:
-            dataloader = DatasetOption.get('mixture')(dataset)
-        else:
-            dataloader = DatasetOption.get(dataset)()
-        metrics = dataloader.metrics
 
         config = get_config(self.config_path)
         config = namedtuple('config', config.keys())(*config.values())
+
+        DatasetOption = get_dataset_option(config.model_name)
+        if 'mt5' in config.model_name:
+            dataloader = DatasetOption.get(dataset)(language=config.language)
+        else:
+            if mixture:
+                dataloader = DatasetOption.get('mixture')(dataset)
+            else:
+                dataloader = DatasetOption.get(dataset)()
+        metrics = dataloader.metrics
+
         if self.use_cpeft:
             results = cpeft_inference(config, dataloader, metrics)
         else:

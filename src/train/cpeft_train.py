@@ -57,6 +57,17 @@ def reset_metrics(metrics):
     return training_metrics, valid_metrics
 
 
+def get_promptinit(config):
+    if config.init_type == 'sampled':
+        return PromptTuningInit.SAMPLED
+    elif config.init_type == 'text':
+        return PromptTuningInit.TEXT
+    elif config.init_type == 'random':
+        return PromptTuningInit.RANDOM
+    elif config.init_type == 'class':
+        return PromptTuningInit.CLASS
+
+
 def train_loop(config, dataloader, metrics):
     os.makedirs(config["output_path"], exist_ok=True)
     os.makedirs(
@@ -69,9 +80,10 @@ def train_loop(config, dataloader, metrics):
 
         peft_config = PromptTuningConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
-            init_type=PromptTuningInit.SAMPLED,
-            num_virtual_tokens=100,
+            init_type=get_promptinit(config),
+            num_virtual_tokens=config.num_virtual_tokens,
             tokenizer_name_or_path=config.model_name,
+            init_text=config.prompt_init_text,
         )
 
         model, tokenizer = get_model_tokenizer(config.model_name)
@@ -99,15 +111,19 @@ def train_loop(config, dataloader, metrics):
 
         print(dataloader.get_max_target_length(tokenizer, 128))
         if './' not in config.model_name and '../' not in config.model_name:
+            print('PROPORTIONAL MIXING')
             train_data = proportional_mixing(train_data)
             print(len(train_data))
             valid_data = proportional_mixing(valid_data)
             print(len(valid_data))
         else:
+            print('ALL MIXING')
             train_data = all_mixing(train_data)
             print(len(train_data))
             valid_data = all_mixing(valid_data)
             print(len(valid_data))
+
+        print(train_data[0])
 
         train_dataloader = DataLoader(
             train_data, shuffle=True, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True
@@ -166,9 +182,12 @@ def train_loop(config, dataloader, metrics):
                 )
 
                 for metric in metrics:
-                    if metric.name in ["F1 over all answers", "F1 with invalid"]:
+                    if metric.name in ["F1 with invalid"]:
                         decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                             decoded_labels, decoded_preds)
+                    elif metric.name in ['Match all', 'Deduplicate metric', "F1 over all answers",]:
+                        decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
+                            decoded_labels, decoded_preds, batch)
                     value = metric.compute(decoded_labels, decoded_preds)
                     for key in metric.key:
                         training_metrics[f"train_{key}"] += value[key]
@@ -210,9 +229,12 @@ def train_loop(config, dataloader, metrics):
                             )
 
                             for metric in metrics:
-                                if metric.name in ["F1 over all answers", "F1 with invalid"]:
+                                if metric.name in ["F1 with invalid"]:
                                     decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                                         decoded_labels, decoded_preds)
+                                elif metric.name in ['Match all', 'Deduplicate metric', "F1 over all answers",]:
+                                    decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
+                                        decoded_labels, decoded_preds, eval_batch)
                                 value = metric.compute(
                                     decoded_labels, decoded_preds)
                                 for key in metric.key:
