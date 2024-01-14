@@ -16,12 +16,11 @@ from accelerate.hooks import AlignDevicesHook, add_hook_to_module, remove_hook_f
 WEIGHTS_NAME = 'adapter_model.bin'
 
 
-class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
-
+class PeftModel(PushToHubMixin, torch.nn.Module):
     # DONE
     def __init__(self, model, peft_config, adapter_name='default'):
         super().__init__()
-        self.prepare_inputs_for_generation = model.prepare_inputs_for_generation
+        # self.prepare_inputs_for_generation = model.prepare_inputs_for_generation
         self.peft_type = 'prompt_tuning'
         self.adapter_name = adapter_name
         self.device = model.device
@@ -34,11 +33,6 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
 
         if hasattr(self.base_model, "config") and hasattr(self.base_model.config, "pretraining_tp"):
             self.base_model.config.pretraining_tp = 1
-
-        self.base_model_prepare_inputs_for_generation = self.base_model.prepare_inputs_for_generation
-        self.base_model_prepare_encoder_decoder_kwargs_for_generation = (
-            self.base_model._prepare_encoder_decoder_kwargs_for_generation
-        )
 
     # DONE
     def save_pretrained(self, save_directory, **kwargs):
@@ -75,102 +69,11 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             prompt_config.inference_mode = inference_mode
 
     # DONE
-    def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        inputs_embeds=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        decoder_inputs_embeds=None,
-        labels=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        **kwargs
-    ):
-        prompt_config = self._peft_config[self.adapter_name]
-        batch_size = _get_batch_size(input_ids, inputs_embeds)
-        if decoder_attention_mask is not None:
-            prefix_attention_mask = torch.ones(
-                batch_size, prompt_config.num_virtual_tokens).to(decoder_attention_mask.device)
-
-        kwargs.update({
-            'attention_mask': attention_mask,
-            'decoder_attention_mask': decoder_attention_mask,
-            'labels': labels,
-            'output_attentions': output_attentions,
-            'output_hidden_states': output_hidden_states,
-            'return_dict': return_dict,
-        })
-
-        if inputs_embeds is None:
-            inputs_embeds = self.word_embeddings(input_ids)
-
-        if attention_mask is not None:
-            prefix_attention_mask = torch.ones(batch_size, prompt_config.num_virtual_tokens).to(
-                attention_mask.device
-            )
-            kwargs["attention_mask"] = torch.cat(
-                (prefix_attention_mask, attention_mask), dim=1)
-
-        prompts = self.get_prompt(batch_size=batch_size)
-        prompts = prompts.to(inputs_embeds.dtype)
-        inputs_embeds = torch.cat(
-            (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
-
-        return self.base_model(
-            inputs_embeds=inputs_embeds,
-            decoder_input_ids=decoder_input_ids,
-            decoder_inputs_embeds=decoder_inputs_embeds,
-            **kwargs
-        )
-
-    # DONE
-    def generate(self, **kwargs):
-        prompt_config = self._peft_config[self.adapter_name]
-        self.base_model.prepare_inputs_for_generation = self.prepare_inputs_for_generation
-        self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
-            self.base_model_prepare_encoder_decoder_kwargs_for_generation
-        )
-        try:
-            # kwargs['position_ids'] = None
-            # kwargs['token_type_ids'] = None
-
-            kwargs = deepcopy(kwargs)
-
-            if 'encoder_outputs' in kwargs:
-                del kwargs['encoder_outputs']
-
-            input_ids = kwargs.pop('input_ids', None)
-            inputs_embeds = self.word_embeddings(input_ids)
-            batch_size = inputs_embeds.shape[0]
-            prompts = self.get_prompt(batch_size=batch_size)
-            prompts = prompts.to(inputs_embeds.dtype)
-
-            inputs_embeds = torch.cat(
-                (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
-            kwargs['inputs_embeds'] = inputs_embeds
-
-            if 'attention_mask' in kwargs:
-                prefix_attention_mask = torch.ones(batch_size, prompt_config.num_virtual_tokens).to(
-                    kwargs['attention_mask'].device
-                )
-                kwargs['attention_mask'] = torch.cat(
-                    (prefix_attention_mask, kwargs['attention_mask']), dim=1)
-            return self.base_model.generate(**kwargs)
-        except:
-            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
-            self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
-                self.base_model_prepare_encoder_decoder_kwargs_for_generation
-            )
-            raise
-        else:
-            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
-            self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
-                self.base_model_prepare_encoder_decoder_kwargs_for_generation
-            )
-            return outputs
+    def forward(self, *args, **kwargs):
+        """
+        Forward pass of the model.
+        """
+        return self.get_base_model()(*args, **kwargs)
 
     # DONE
     @classmethod
@@ -345,5 +248,217 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
         return model_kwargs
 
 
-class PeftModelForCausalLM(PushToHubMixin, torch.nn.Module):
-    pass
+class PromptTuningForSeq2SeqLM(PeftModel):
+
+    # DONE
+    def __init__(self, model, peft_config, adapter_name='default'):
+        # self.prepare_inputs_for_generation = model.prepare_inputs_for_generation
+        super().__init__(model, peft_config, adapter_name=adapter_name)
+        self.base_model_prepare_inputs_for_generation = self.base_model.prepare_inputs_for_generation
+        self.base_model_prepare_encoder_decoder_kwargs_for_generation = (
+            self.base_model._prepare_encoder_decoder_kwargs_for_generation
+        )
+
+    # DONE
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        decoder_input_ids=None,
+        decoder_attention_mask=None,
+        decoder_inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+        **kwargs
+    ):
+        prompt_config = self._peft_config[self.adapter_name]
+        batch_size = _get_batch_size(input_ids, inputs_embeds)
+        if decoder_attention_mask is not None:
+            prefix_attention_mask = torch.ones(
+                batch_size, prompt_config.num_virtual_tokens).to(decoder_attention_mask.device)
+
+        kwargs.update({
+            'attention_mask': attention_mask,
+            'decoder_attention_mask': decoder_attention_mask,
+            'labels': labels,
+            'output_attentions': output_attentions,
+            'output_hidden_states': output_hidden_states,
+            'return_dict': return_dict,
+        })
+
+        if inputs_embeds is None:
+            inputs_embeds = self.word_embeddings(input_ids)
+
+        if attention_mask is not None:
+            prefix_attention_mask = torch.ones(batch_size, prompt_config.num_virtual_tokens).to(
+                attention_mask.device
+            )
+            kwargs["attention_mask"] = torch.cat(
+                (prefix_attention_mask, attention_mask), dim=1)
+
+        prompts = self.get_prompt(batch_size=batch_size)
+        prompts = prompts.to(inputs_embeds.dtype)
+        inputs_embeds = torch.cat(
+            (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
+
+        return self.base_model(
+            inputs_embeds=inputs_embeds,
+            decoder_input_ids=decoder_input_ids,
+            decoder_inputs_embeds=decoder_inputs_embeds,
+            **kwargs
+        )
+
+    # DONE
+    def generate(self, **kwargs):
+        prompt_config = self._peft_config[self.adapter_name]
+        self.base_model.prepare_inputs_for_generation = self.prepare_inputs_for_generation
+        self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
+            self.base_model_prepare_encoder_decoder_kwargs_for_generation
+        )
+        try:
+            # kwargs['position_ids'] = None
+            # kwargs['token_type_ids'] = None
+
+            kwargs = deepcopy(kwargs)
+
+            if 'encoder_outputs' in kwargs:
+                del kwargs['encoder_outputs']
+
+            input_ids = kwargs.pop('input_ids', None)
+            inputs_embeds = self.word_embeddings(input_ids)
+            batch_size = inputs_embeds.shape[0]
+            prompts = self.get_prompt(batch_size=batch_size)
+            prompts = prompts.to(inputs_embeds.dtype)
+
+            inputs_embeds = torch.cat(
+                (prompts[:, :prompt_config.num_virtual_tokens], inputs_embeds), dim=1)
+            kwargs['inputs_embeds'] = inputs_embeds
+
+            if 'attention_mask' in kwargs:
+                prefix_attention_mask = torch.ones(batch_size, prompt_config.num_virtual_tokens).to(
+                    kwargs['attention_mask'].device
+                )
+                kwargs['attention_mask'] = torch.cat(
+                    (prefix_attention_mask, kwargs['attention_mask']), dim=1)
+            return self.base_model.generate(**kwargs)
+        except:
+            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
+            self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
+                self.base_model_prepare_encoder_decoder_kwargs_for_generation
+            )
+            raise
+        else:
+            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
+            self.base_model._prepare_encoder_decoder_kwargs_for_generation = (
+                self.base_model_prepare_encoder_decoder_kwargs_for_generation
+            )
+            return outputs
+
+    # DONE
+    def prepare_inputs_for_generation(self, *args, **kwargs):
+        model_kwargs = self.base_model_prepare_inputs_for_generation(
+            *args, **kwargs)
+
+        return model_kwargs
+
+
+class PromptTuningForCausalLM(PeftModel):
+    def __init__(self, model, peft_config, adapter_name='default'):
+        super().__init__(model, peft_config, adapter_name=adapter_name)
+        self.base_model_prepare_inputs_for_generation = self.base_model.prepare_inputs_for_generation
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+        **kwargs,
+    ):
+        peft_config = self._peft_config[self.adapter_name]
+
+        batch_size = _get_batch_size(input_ids, inputs_embeds)
+        if attention_mask is not None:
+            prefix_attention_mask = torch.ones(
+                batch_size, peft_config.num_virtual_tokens).to(attention_mask.device)
+            attention_mask = torch.cat(
+                (prefix_attention_mask, attention_mask), dim=1)
+
+        kwargs.update({
+            'attention_mask': attention_mask,
+            'labels': labels,
+            'output_attentions': output_attentions,
+            'output_hidden_states': output_hidden_states,
+            'return_dict': return_dict,
+        })
+
+        if inputs_embeds is None:
+            inputs_embeds = self.word_embeddings(input_ids)
+
+        if labels is not None:
+            prefix_labels = torch.full(
+                (batch_size, peft_config.num_virtual_tokens),
+                -100
+            ).to(labels.device)
+            kwargs['labels'] = torch.cat(
+                (prefix_labels, labels), dim=1)
+
+        prompts = self.get_prompt(batch_size=batch_size)
+        prompts = prompts.to(inputs_embeds.dtype)
+        inputs_embeds = torch.cat(
+            (prompts, inputs_embeds), dim=1)
+        return self.base_model(
+            inputs_embeds=inputs_embeds,
+            **kwargs
+        )
+
+    def generate(self, **kwargs):
+        self.base_model.prepare_inputs_for_generation = self.prepare_inputs_for_generation
+        if hasattr(self.base_model, 'model'):
+            self.base_model.model.generation_config = self.generation_config
+        else:
+            self.base_model.generation_config = self.generation_config
+        try:
+            outputs = self.base_model.generate(**kwargs)
+        except:
+            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
+            raise
+        else:
+            self.base_model.prepare_inputs_for_generation = self.base_model_prepare_inputs_for_generation
+            return outputs
+
+    def prepare_inputs_for_generation(self, *args, **kwargs):
+        peft_config = self._peft_config[self.adapter_name]
+        model_kwargs = self.base_model_prepare_inputs_for_generation(
+            *args, **kwargs)
+
+        if model_kwargs.get("attention_mask", None) is not None:
+            size = model_kwargs["input_ids"].shape[0], peft_config.num_virtual_tokens
+            prefix_attention_mask = torch.ones(size).to(
+                model_kwargs["input_ids"].device)
+            model_kwargs["attention_mask"] = torch.cat(
+                (prefix_attention_mask, model_kwargs["attention_mask"]), dim=1
+            )
+
+        if model_kwargs.get("position_ids", None) is not None:
+            model_kwargs["position_ids"] = None
+
+        if kwargs.get("token_type_ids", None) is not None:
+            model_kwargs["token_type_ids"] = None
+
+        if model_kwargs["past_key_values"] is None:
+            inputs_embeds = self.word_embeddings(model_kwargs["input_ids"])
+            prompts = self.get_prompt(
+                batch_size=model_kwargs["input_ids"].shape[0])
+            prompts = prompts.to(inputs_embeds.dtype)
+            model_kwargs["inputs_embeds"] = torch.cat(
+                (prompts, inputs_embeds), dim=1)
+            model_kwargs["input_ids"] = None
+
+        return model_kwargs

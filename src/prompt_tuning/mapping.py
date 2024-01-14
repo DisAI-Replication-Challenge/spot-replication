@@ -1,5 +1,10 @@
 from .utils import _prepare_prompt_learning_config
-from .prompt_tuning import PromptTuningForSeq2SeqLM
+from .prompt_tuning import PeftModel, PromptTuningForSeq2SeqLM, PromptTuningForCausalLM
+
+MODEL_TYPE_TO_PEFT_MODEL_MAPPING = {
+    "SEQ_2_SEQ_LM": PromptTuningForSeq2SeqLM,
+    "CAUSAL_LM": PromptTuningForCausalLM,
+}
 
 
 def get_prompt_tuning_model(model, peft_config, adapter_name='default'):
@@ -9,4 +14,4 @@ def get_prompt_tuning_model(model, peft_config, adapter_name='default'):
 
     peft_config = _prepare_prompt_learning_config(peft_config, model_config)
 
-    return PromptTuningForSeq2SeqLM(model, peft_config, adapter_name=adapter_name)
+    return MODEL_TYPE_TO_PEFT_MODEL_MAPPING[peft_config.task_type](model, peft_config, adapter_name=adapter_name)
