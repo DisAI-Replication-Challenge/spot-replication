@@ -5,19 +5,10 @@ from train.train import train_with_sweeps
 from train.train import train as custom_train
 from train.cpeft_train import train as cpeft_train
 from train.cpeft_train import train_with_sweeps as cpeft_train_with_sweeps
-from data.t5.task import DatasetOption as T5DatasetOption
-from data.mt5.task import DatasetOption as MT5DatasetOption
 from eval.hf_inference_peft import inference
 from eval.cpeft_inference import inference as cpeft_inference
 from collections import namedtuple
-import yaml
-
-
-def get_dataset_option(model_name):
-    if 'mt5' in model_name:
-        return MT5DatasetOption
-    else:
-        return T5DatasetOption
+from train.utils import get_dataset_option, is_multilingual
 
 
 class CustomTrainer:
@@ -44,7 +35,7 @@ class CustomTrainer:
 
         DatasetOption = get_dataset_option(config.model_name)
 
-        if 'mt5' in config.model_name:
+        if is_multilingual(config.model_name):
             dataloader = DatasetOption.get(dataset)(language=config.language)
         else:
             if mixture:
@@ -97,7 +88,7 @@ class CustomTrainer:
         config = namedtuple('config', config.keys())(*config.values())
 
         DatasetOption = get_dataset_option(config.model_name)
-        if 'mt5' in config.model_name:
+        if is_multilingual(config.model_name):
             dataloader = DatasetOption.get(dataset)(language=config.language)
         else:
             if mixture:
@@ -112,7 +103,7 @@ class CustomTrainer:
             results = inference(config, dataloader, metrics)
 
         print(results)
-        model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}'
+        model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}-{config.language}'
 
         df = pd.DataFrame(list(results.items()), columns=['Metric', 'Value'])
         df.to_csv(f'{model_name}/valid.csv', index=False)

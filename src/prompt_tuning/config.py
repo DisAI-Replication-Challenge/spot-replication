@@ -18,6 +18,7 @@ class PromptTuningInit(str, enum.Enum):
 
 class TaskType(str, enum.Enum):
     SEQ_2_SEQ_LM = 'SEQ_2_SEQ_LM'
+    CAUSAL_LM = 'CAUSAL_LM'
 
 
 @dataclass

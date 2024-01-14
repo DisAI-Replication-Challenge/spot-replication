@@ -3,6 +3,10 @@ from transformers import TrainingArguments
 from torch.optim import AdamW, Adamax, Adagrad, Adadelta, SparseAdam, Adam
 from transformers import Adafactor
 
+from data.t5.task import DatasetOption as T5DatasetOption
+from data.mt5.task import DatasetOption as MT5DatasetOption
+from data.bloom.task import DatasetOption as BloomDatasetOption
+
 
 def create_arguments(num_samples, config, metrics):
     batch_size = config.batch_size
@@ -101,3 +105,18 @@ def get_config(config_path):
     with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
+
+
+def is_multilingual(model_name):
+    multilingual_models = ['mt5', 'mt0', 'bloom',
+                           'flant', 'mbart', 'mbert', 'CLEF2022']
+    return any(keyword in model_name for keyword in multilingual_models)
+
+
+def get_dataset_option(model_name):
+    if 'mt' in model_name or 'CLEF2022' in model_name:
+        return MT5DatasetOption
+    if 'bloom' in model_name:
+        return BloomDatasetOption
+    else:
+        return T5DatasetOption

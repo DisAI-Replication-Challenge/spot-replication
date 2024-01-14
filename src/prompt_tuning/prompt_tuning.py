@@ -343,3 +343,7 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             *args, **kwargs)
 
         return model_kwargs
+
+
+class PeftModelForCausalLM(PushToHubMixin, torch.nn.Module):
+    pass

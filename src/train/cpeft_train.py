@@ -37,9 +37,9 @@ def get_model_tokenizer(model_name):
 
 def save_model_prompt(model, tokenizer, prompt, config, dataloader, total_steps, best=False):
     if best:
-        path = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}/best_model'
+        path = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}-{config.language}/best_model'
     else:
-        path = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}/checkpoint_{total_steps}'
+        path = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}-{config.language}/checkpoint_{total_steps}'
 
     model.save_pretrained(path)
     tokenizer.save_pretrained(path)
@@ -71,7 +71,7 @@ def get_promptinit(config):
 def train_loop(config, dataloader, metrics):
     os.makedirs(config["output_path"], exist_ok=True)
     os.makedirs(
-        f'{config["output_path"]}/{config["model_name"].split("/")[-1]}-{dataloader.name}', exist_ok=True)
+        f'{config["output_path"]}/{config["model_name"].split("/")[-1]}-{dataloader.name}-{config["language"]}', exist_ok=True)
 
     with wandb.init(config=config):
         config = wandb.config
