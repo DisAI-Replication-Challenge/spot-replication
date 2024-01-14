@@ -2,15 +2,16 @@ learning_rate: 0.3
 optimizer: Adafactor
 batch_size: 32
 epochs: 3
-training_steps: 100000
+training_steps: 50000
 eval_steps: 500
 save_steps: 500
 warm_init: True
 weight_decay: 0.00001
 num_warmup_steps: 0
-model_name: google/mt5-base
-output_path: ../results
-language: english
+# model_name: bigscience/mt0-base
+model_name: ../results/mt0-base-CLEF2022-spanish/best_model
+output_path: ../results/spanish
+language: bulgarian
 # output_path: ../results/qqp
 prompt_init_text: "unworthy, checkworthy"
 eval_strategy: steps

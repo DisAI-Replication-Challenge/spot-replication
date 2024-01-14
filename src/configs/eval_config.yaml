@@ -1,5 +1,6 @@
 batch_size: 32
-model_name: ../results/t5v1-1-nli/best_model-mixture_glue/best_model
+model_name: ../results/english/best_model-CLEF2022-turkish/best_model
 output_path: ../results
 padding: max_length
 truncation: True
+language: turkish
