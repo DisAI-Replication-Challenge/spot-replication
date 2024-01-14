@@ -61,7 +61,7 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
 
 
 def inference(config, dataloader, metrics):
-    model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}/best_model'
+    model_name = f'{config.output_path}/{config.model_name.split("/")[-1]}-{dataloader.name}-{config.language}/best_model'
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
