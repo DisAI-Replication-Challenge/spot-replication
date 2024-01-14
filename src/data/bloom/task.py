@@ -53,9 +53,7 @@ class CLEF2022(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -87,12 +85,11 @@ class CLEF2022(Dataset):
         tweet_text = x['tweet_text']
         # remove urls
         tweet_text = re.sub(r'http\S+', '', tweet_text)
-        tweet_text = self._pad_punctuation(tweet_text)
         tweet_text = tweet_text.replace('\n', ' ')
         tweet_text = tweet_text.replace('\t', ' ')
         class_label = self.label_names[x['class_label']]
         return {
-            'inputs': f'claim: {tweet_text}',
+            'inputs': f'Claim : {tweet_text} Label : ',
             'targets': class_label
         }
 
@@ -109,9 +106,7 @@ class CLEF2022KInIT(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -122,17 +117,7 @@ class CLEF2022KInIT(Dataset):
             lambda x: x['lang'] in self.languages)
 
     def preprocess(self, x):
-        text = x['text']
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-        class_label = self.label_names[x['claim']]
-        return {
-            'inputs': f'claim: {text}',
-            'targets': class_label
-        }
+        pass
 
 
 class CLEF2023KInIT(Dataset):
@@ -149,9 +134,7 @@ class CLEF2023KInIT(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -162,17 +145,7 @@ class CLEF2023KInIT(Dataset):
             lambda x: x['lang'] in self.languages)
 
     def preprocess(self, x):
-        text = x['text']
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-        class_label = self.label_names[x['claim']]
-        return {
-            'inputs': f'claim: {text}',
-            'targets': class_label
-        }
+        pass
 
 
 class MONANT(Dataset):
@@ -187,9 +160,7 @@ class MONANT(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -232,18 +203,7 @@ class MONANT(Dataset):
         })
 
     def preprocess(self, x):
-        text = x[self.language]
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-        class_label = self.label_names[x['claim']]
-
-        return {
-            'inputs': f'claim: {text}',
-            'targets': class_label
-        }
+        pass
 
 
 class CLEF2021(Dataset):
@@ -258,9 +218,7 @@ class CLEF2021(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -289,17 +247,7 @@ class CLEF2021(Dataset):
             {'train': train_dataset, 'valid': valid_dataset, 'test': test_dataset})
 
     def preprocess(self, x):
-        tweet_text = x['tweet_text']
-        # remove urls
-        tweet_text = re.sub(r'http\S+', '', tweet_text)
-        tweet_text = self._pad_punctuation(tweet_text)
-        tweet_text = tweet_text.replace('\n', ' ')
-        tweet_text = tweet_text.replace('\t', ' ')
-        class_label = self.label_names[x['check_worthiness']]
-        return {
-            'inputs': f'claim: {tweet_text}',
-            'targets': class_label
-        }
+        pass
 
 
 class CLEF2023(Dataset):
@@ -314,9 +262,7 @@ class CLEF2023(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -345,25 +291,7 @@ class CLEF2023(Dataset):
             {'train': train_dataset, 'valid': valid_dataset, 'test': test_dataset})
 
     def preprocess(self, x):
-        def convert_label(label):
-            if label.lower() == 'no':
-                return 0
-            elif label.lower() == 'yes':
-                return 1
-            else:
-                raise ValueError(f'Invalid label: {label}')
-
-        tweet_text = x['Text']
-        # remove urls
-        tweet_text = re.sub(r'http\S+', '', tweet_text)
-        tweet_text = self._pad_punctuation(tweet_text)
-        tweet_text = tweet_text.replace('\n', ' ')
-        tweet_text = tweet_text.replace('\t', ' ')
-        class_label = self.label_names[convert_label(x['class_label'])]
-        return {
-            'inputs': f'claim: {tweet_text}',
-            'targets': class_label
-        }
+        pass
 
 
 class LESA2021(Dataset):
@@ -378,9 +306,7 @@ class LESA2021(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -423,17 +349,7 @@ class LESA2021(Dataset):
         })
 
     def preprocess(self, x):
-        text = x[self.language]
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-        class_label = self.label_names[x['claim']]
-        return {
-            'inputs': f'claim: {text}',
-            'targets': class_label
-        }
+        pass
 
 
 class LIAR(Dataset):
@@ -452,31 +368,11 @@ class LIAR(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def preprocess(self, x):
-        text = x['statement']
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-
-        if self.multiclass:
-            class_label = self.label_names[x['label']]
-        else:
-            if x['label'] in [0, 1, 5]:
-                class_label = self.label_names[0]
-            else:
-                class_label = self.label_names[1]
-
-        return {
-            'inputs': f'claim: {text}',
-            'targets': class_label
-        }
+        pass
 
 
 class XFact(Dataset):
@@ -492,9 +388,7 @@ class XFact(Dataset):
             'test': 'test',
         }
         self.metrics = [
-            Metric(name='Accuracy', compute=metrics.accuracy,
-                   key=['accuracy']),
-            Metric(name='F1', compute=metrics.macro_f1, key=['macro_f1']),
+            Metric(name='Accuracy', compute=metrics.accuracy, key=['accuracy'])
         ]
 
     def load_dataset(self):
@@ -534,36 +428,7 @@ class XFact(Dataset):
         })
 
     def preprocess(self, x):
-        text = x['claim']
-        # remove urls
-        text = re.sub(r'http\S+', '', text)
-        text = self._pad_punctuation(text)
-        text = text.replace('\n', ' ')
-        text = text.replace('\t', ' ')
-
-        class_label = self.label_names[x['label']]
-
-        if self.use_evidence:
-            evidences = [x[f'evidence_{idx}'] for idx in range(1, 6)]
-            evidences = [
-                self._pad_punctuation(
-                    re.sub(r'http\S+', '', evidence)).replace('\t', ' ').replace('\n', ' ')
-                for evidence in evidences
-            ]
-            evidences = [
-                f'evidence{idx + 1}: {evidence}'
-                for idx, evidence in enumerate(evidences)
-            ]
-
-            evidence_text = ' '.join(evidences)
-            input_text = f'claim: {text} {evidence_text}'
-        else:
-            input_text = f'claim: {text}'
-
-        return {
-            'inputs': input_text,
-            'targets': class_label
-        }
+        pass
 
 
 class FEVER(Dataset):

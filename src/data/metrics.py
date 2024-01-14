@@ -1,6 +1,7 @@
 from rouge_score import rouge_scorer
 from rouge_score import scoring
 import sacrebleu
+from sklearn.metrics import f1_score
 import sklearn.metrics
 import scipy.stats
 import numpy as np
@@ -444,3 +445,17 @@ def deduplicate_metric(metric_fn,
             deduplicated_predictions.append(pred[value_key])
         return metric_fn(deduplicated_targets, deduplicated_predictions)
     return _deduplicated_metric
+
+
+def macro_f1(targets, predictions):
+    """Computes macro F1 score.
+
+    Args:
+      targets: list of lists of strings
+      predictions: list of strings
+
+    Returns:
+      dict with score_key: macro f1 score across all targets and predictions
+    """
+    score = f1_score(targets, predictions, average='macro')
+    return {"macro_f1": 100 * score}

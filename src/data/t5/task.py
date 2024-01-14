@@ -46,10 +46,10 @@ class Record(Dataset):
             new_batch["targets"].extend(
                 ex["answers"] if num_answers > 0 else ["<unk>"])
 
-            # if self.split != 'train':
-            new_batch["task"].extend([self.name] * num_duplicates)
-            new_batch["group"].extend(
-                [ex["idx"]["query"]] * num_duplicates)
+            if self.split != 'train':
+                new_batch["task"].extend([self.name] * num_duplicates)
+                new_batch["group"].extend(
+                    [ex["idx"]["query"]] * num_duplicates)
 
         return new_batch
 
@@ -203,8 +203,8 @@ class MultiRC(Dataset):
             1 else self.label_names[x['label']]
         ex['targets'] = label_name
         ex['inputs'] = f'question: {self._remove_markup(x["question"])} answer: {self._remove_markup(x["answer"])} paragraph: {self._remove_markup(x["paragraph"])}'
-        # if self.split != 'train':
-        ex['group'] = x['idx']['paragraph']
+        if self.split != 'train':
+            ex['group'] = x['idx']['paragraph']
         return ex
 
     def postprocess_for_metrics(self, labels, preds, item):
