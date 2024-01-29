@@ -31,6 +31,7 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
             test_metrics[f"test_{key}"] = 0.0
 
     model.eval()
+    data_length = len(data)
     with torch.no_grad():
         for batch in tqdm(data):
             batch = {k: v.to(device) for k, v in batch.items()}
@@ -49,13 +50,18 @@ def eval_data(model, tokenizer, data, metrics, dataloader):
                     decoded_labels, decoded_preds = dataloader.postprocess_for_metrics(
                         decoded_labels, decoded_preds)
                 value = metric.compute(decoded_labels, decoded_preds)
+                # check if value is nan
+                if value != value:
+                    data_length -= 1
+                    continue
                 for key in metric.key:
                     test_metrics[f"test_{key}"] += value[key]
 
+        print(decoded_labels[:10], decoded_preds[:10])
     for metric in metrics:
         for key in metric.key:
             test_metrics[f"test_{key}"] = test_metrics[f"test_{key}"] / \
-                len(data)
+                data_length
 
     return test_metrics
 
@@ -81,7 +87,7 @@ def inference(config, dataloader, metrics):
     test_data = all_mixing(test_data)
 
     test_dataloader = DataLoader(
-        test_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True)
+        test_data, collate_fn=default_data_collator, batch_size=config.batch_size, pin_memory=True, shuffle=True)
 
     model.to(device)
 

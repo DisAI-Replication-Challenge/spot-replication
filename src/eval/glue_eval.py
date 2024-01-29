@@ -40,6 +40,8 @@ def inference(model_name, config, dataloader, eval_name='super_glue'):
         model.to(device)
         model.eval()
 
+        data_lengths = {f'{metric.name}': len(test_dataloader)
+                        for metric in metrics}
         with torch.no_grad():
             for batch in test_dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
@@ -61,13 +63,19 @@ def inference(model_name, config, dataloader, eval_name='super_glue'):
                         decoded_labels, decoded_preds = current_dataloader.postprocess_for_metrics(
                             decoded_labels, decoded_preds, batch)
                     value = metric.compute(decoded_labels, decoded_preds)
+                    # check if value is nan
+                    if value != value:
+                        print('nan')
+                        data_lengths[f'{metric.name}'] -= 1
+                        continue
                     for key in metric.key:
                         test_metrics[f"test_{key}"] += value[key]
 
+        print(decoded_labels[:10], decoded_preds[:10])
         for metric in metrics:
             for key in metric.key:
                 test_metrics[f"test_{key}"] = test_metrics[f"test_{key}"] / \
-                    len(test_dataloader)
+                    data_lengths[f'{metric.name}']
 
         print(test_metrics)
         df = pd.DataFrame(list(test_metrics.items()),

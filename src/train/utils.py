@@ -56,6 +56,7 @@ def get_optimizer(config, model):
 
     optimizer = config.optimizer
     optimizer_lr = config.learning_rate
+    wd = config.weight_decay
 
     if optimizer == 'Adadelta':
         return Adadelta(
@@ -75,7 +76,8 @@ def get_optimizer(config, model):
     elif optimizer == 'AdamW':
         return AdamW(
             model.parameters(),
-            lr=optimizer_lr
+            lr=optimizer_lr,
+            weight_decay=wd
         )
     elif optimizer == 'SparseAdam':
         return SparseAdam(
@@ -97,7 +99,8 @@ def get_optimizer(config, model):
 
     return Adam(
         model.parameters(),
-        lr=optimizer_lr
+        lr=optimizer_lr,
+        weight_decay=wd
     )
 
 

@@ -11,6 +11,8 @@ import yaml
 import wandb
 from prompt_tuning import PromptTuningConfig, PromptTuningInit, TaskType, get_prompt_tuning_model
 from train.sampling import all_mixing, proportional_mixing
+from transformers import set_seed
+
 
 from data.preprocess import preprocess_data
 from train.utils import get_optimizer
@@ -85,6 +87,9 @@ def train_loop(config, dataloader, metrics):
             tokenizer_name_or_path=config.model_name,
             init_text=config.prompt_init_text,
         )
+
+        if 'seed' in config:
+            set_seed(config.seed)
 
         model, tokenizer = get_model_tokenizer(config.model_name)
         if './' not in config.model_name and '../' not in config.model_name:
