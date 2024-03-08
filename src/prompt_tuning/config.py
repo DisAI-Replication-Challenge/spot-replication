@@ -25,7 +25,7 @@ class TaskType(str, enum.Enum):
 class PromptTuningConfig(PushToHubMixin):
 
     auto_mapping: dict = None
-    base_model_or_path: str = None
+    base_model_name_or_path: str = None
     revision: str = None
     task_type: str = TaskType.SEQ_2_SEQ_LM
     inference_mode: bool = False
@@ -33,10 +33,11 @@ class PromptTuningConfig(PushToHubMixin):
     token_dim: int = None
     num_transformer_submodules: int = None
     num_layers: int = None
-    init_type: str = PromptTuningInit.RANDOM
-    init_text: str = None
+    prompt_tuning_init: str = PromptTuningInit.RANDOM
+    prompt_tuning_init_text: str = None
     num_attention_heads: int = None
     tokenizer_name_or_path: str = 't5-base'
+    peft_type: str = 'PROMPT_TUNING'
 
     def to_dict(self):
         return asdict(self)

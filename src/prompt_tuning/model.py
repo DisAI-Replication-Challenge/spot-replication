@@ -8,7 +8,7 @@ from train.initialization import init_tokens, class_initialization
 class PromptEmbedding(torch.nn.Module):
     def __init__(self, config, word_embeddings):
         super().__init__()
-        init_type = config.init_type
+        init_type = config.prompt_tuning_init
 
         total_virtual_tokens = config.num_virtual_tokens * \
             config.num_transformer_submodules
@@ -17,7 +17,7 @@ class PromptEmbedding(torch.nn.Module):
         if init_type == PromptTuningInit.TEXT:
             tokenizer = AutoTokenizer.from_pretrained(
                 config.tokenizer_name_or_path)
-            init_text = config.init_text
+            init_text = config.prompt_tuning_init_text
             init_tokens_ids = tokenizer(init_text)['input_ids']
             num_tokens = len(init_tokens_ids)
             if num_tokens > total_virtual_tokens:
@@ -56,7 +56,7 @@ class PromptEmbedding(torch.nn.Module):
         elif init_type == PromptTuningInit.CLASS:
             tokenizer = AutoTokenizer.from_pretrained(
                 config.tokenizer_name_or_path)
-            class_tokens = config.init_text
+            class_tokens = config.prompt_tuning_init_text
             classes = class_tokens.split(',')
             class_tokens = class_initialization(tokenizer, classes)
             num_tokens = len(class_tokens)

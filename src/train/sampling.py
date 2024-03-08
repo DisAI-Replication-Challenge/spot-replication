@@ -32,6 +32,9 @@ def proportional_mixing(datasets, required_size=524288):
         [dataset.select(range(size)) for dataset,
          size in zip(datasets, num_samples)]
     )
+    # shuffle mixed dataset
+    mixed_dataset = mixed_dataset.shuffle()
+
     return mixed_dataset
 
 

@@ -36,6 +36,7 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             self.base_model.config.pretraining_tp = 1
 
         self.base_model_prepare_inputs_for_generation = self.base_model.prepare_inputs_for_generation
+        self._prepare_encoder_decoder_kwargs_for_generation = self.base_model._prepare_encoder_decoder_kwargs_for_generation
         self.base_model_prepare_encoder_decoder_kwargs_for_generation = (
             self.base_model._prepare_encoder_decoder_kwargs_for_generation
         )
@@ -61,8 +62,8 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             torch.save(output_state_dict, os.path.join(
                 output_dir, WEIGHTS_NAME))
 
-            if prompt_config.base_model_or_path is None:
-                prompt_config.base_mode_name_or_path = (
+            if prompt_config.base_model_name_or_path is None:
+                prompt_config.base_model_name_or_path = (
                     self.base_model.__dict__.get('name_or_path', None)
                 )
 
@@ -134,6 +135,9 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
             self.base_model_prepare_encoder_decoder_kwargs_for_generation
         )
         try:
+            if 'input_ids' not in kwargs and 'inputs_embeds' in kwargs:
+                return self.base_model.generate(**kwargs)
+
             # kwargs['position_ids'] = None
             # kwargs['token_type_ids'] = None
 
@@ -186,8 +190,9 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
     def _setup_prompt_encoder(self, adapter_name):
         config = self._peft_config[adapter_name]
 
-        self.prompt_encoder = torch.nn.ModuleDict({})
-        self.prompt_tokens = {}
+        if not hasattr(self, "prompt_encoder"):
+            self.prompt_encoder = torch.nn.ModuleDict({})
+            self.prompt_tokens = {}
         transformer_backbone = None
 
         for name, module in self.base_model.named_children():
@@ -241,18 +246,46 @@ class PromptTuningForSeq2SeqLM(PushToHubMixin, torch.nn.Module):
     # DONE
     def get_prompt(self, batch_size):
         prompt_config = self._peft_config[self.adapter_name]
-        prompt_encoder = self.prompt_encoder[self.adapter_name]
 
-        prompt_tokens = (
-            self.prompt_tokens[self.adapter_name]
-            .unsqueeze(0)
-            .expand(batch_size, -1)
-            .to(prompt_encoder.embeddings.weight.device)
-        )
-        if prompt_config.inference_mode:
-            return prompt_encoder.embeddings.weight.repeat(batch_size, 1, 1)
+        if self.prompt_encoder.keys():
+            prompt_encoder = self.prompt_encoder[self.adapter_name]
+
+            prompt_tokens = (
+                self.prompt_tokens[self.adapter_name]
+                .unsqueeze(0)
+                .expand(batch_size, -1)
+                .to(prompt_encoder.embeddings.weight.device)
+            )
+            if prompt_config.inference_mode:
+                return prompt_encoder.embeddings.weight.repeat(batch_size, 1, 1)
+            else:
+                return prompt_encoder(prompt_tokens)
         else:
-            return prompt_encoder(prompt_tokens)
+            prompt_embeddings = []
+            for adapter_name in self.prompt_encoder.keys():
+                prompt_encoder = self.prompt_encoder[adapter_name]
+                prompt_tokens = (
+                    self.prompt_tokens[adapter_name]
+                    .unsqueeze(0)
+                    .expand(batch_size, -1)
+                    .to(prompt_encoder.embeddings.weight.device)
+                )
+                if prompt_config.inference_mode:
+                    prompt_embeddings.append(
+                        prompt_encoder.embeddings.weight.repeat(batch_size, 1, 1))
+                else:
+                    prompt_embeddings.append(prompt_encoder(prompt_tokens))
+
+            # use average of prompt embeddings
+            prompt_embeddings = torch.stack(prompt_embeddings, dim=1)
+            return torch.mean(prompt_embeddings, dim=1)
+
+    def __getattr__(self, name: str):
+        """Forward missing attributes to the wrapped module."""
+        try:
+            return super().__getattr__(name)  # defer to nn.Module's logic
+        except AttributeError:
+            return getattr(self.base_model, name)
 
     # DONE
     @classmethod
