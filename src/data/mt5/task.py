@@ -1049,7 +1049,7 @@ class MLQA(Dataset):
         self.language = convert_language(language)
         super().__init__('mlqa', None, split)
         self.name = 'mlqa'
-        self.label_names = ['false', 'true', 'not enough info']
+        self.label_names = None
         self.split_to_data_split = {
             'train': 'train',
             'validation': 'validation',
@@ -1101,7 +1101,7 @@ class SKSQuAD(Dataset):
         self.language = convert_language(language)
         super().__init__('sksquad', None, split)
         self.name = 'sksquad'
-        self.label_names = ['false', 'true', 'not enough info']
+        self.label_names = None
         self.split_to_data_split = {
             'train': 'train',
             'validation': 'validation',
@@ -1143,7 +1143,7 @@ class CSSQuAD(Dataset):
         self.language = convert_language(language)
         super().__init__('cssquad', None, split)
         self.name = 'cssquad'
-        self.label_names = ['false', 'true', 'not enough info']
+        self.label_names = None
         self.split_to_data_split = {
             'train': 'train',
             'validation': 'validation',
